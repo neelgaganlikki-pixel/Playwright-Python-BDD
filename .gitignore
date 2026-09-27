@@ -1,0 +1,32 @@
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+env/
+venv/
+.venv/
+ENV/
+
+# Environment configurations containing credentials
+.env
+
+# Pytest & Test Execution Artifacts
+.pytest_cache/
+reports/
+screenshots/
+test-results/
+*.log
+
+# Playwright artifacts
+videos/
+traces/
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
