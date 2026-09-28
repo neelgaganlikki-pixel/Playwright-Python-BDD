@@ -2,53 +2,22 @@ pipeline {
 
     agent any
 
-    parameters {
-
-        choice(
-            name: 'BROWSER',
-            choices: ['chromium', 'firefox', 'webkit'],
-            description: 'Browser engine for test execution'
-        )
-
-        booleanParam(
-            name: 'HEADLESS',
-            defaultValue: true,
-            description: 'Execute tests in headless mode'
-        )
-
-        string(
-            name: 'SLOW_MO',
-            defaultValue: '0',
-            description: 'Slow motion delay in milliseconds'
-        )
-
-        string(
-            name: 'TEST_MARKER',
-            defaultValue: '',
-            description: 'Pytest marker expression. Leave empty to run all tests.'
-        )
-    }
-
-
     environment {
 
-        /*
-         * IMPORTANT:
-         * Jenkins could not find Python through PATH.
-         * Therefore we use the absolute Python executable path.
-         */
+        // Explicit Python installation used by Jenkins
         PYTHON_EXE = 'C:\\Users\\NEELGAGAN B R\\AppData\\Local\\Programs\\Python\\Python314\\python.exe'
 
+        // OrangeHRM configuration
         BASE_URL = 'https://opensource-demo.orangehrmlive.com/'
 
         ORANGEHRM_USERNAME = 'Admin'
 
-        HEADLESS = "${params.HEADLESS}"
+        // CI settings
+        HEADLESS = 'true'
+        BROWSER = 'chromium'
+        SLOW_MO = '0'
 
-        BROWSER = "${params.BROWSER}"
-
-        SLOW_MO = "${params.SLOW_MO}"
-
+        // Jenkins Credential
         ORANGEHRM_PASSWORD = credentials(
             'orangehrm-admin-password'
         )
@@ -56,7 +25,6 @@ pipeline {
 
 
     stages {
-
 
         stage('Environment Check') {
 
@@ -82,7 +50,7 @@ pipeline {
         }
 
 
-        stage('Setup Environment & Dependencies') {
+        stage('Setup Python Environment') {
 
             steps {
 
@@ -92,7 +60,7 @@ pipeline {
 
                 bat '''
                     if not exist venv (
-                        echo Creating Python virtual environment...
+                        echo Creating virtual environment...
                         "%PYTHON_EXE%" -m venv venv
                     )
 
@@ -104,42 +72,37 @@ pipeline {
                     python -m pip install --upgrade pip
 
                     echo.
-                    echo Installing project dependencies...
+                    echo Installing dependencies...
                     python -m pip install -r requirements.txt
                 '''
             }
         }
 
 
-        stage('Install Playwright Browsers') {
+        stage('Install Playwright') {
 
             steps {
 
                 echo '========================================'
-                echo 'INSTALLING PLAYWRIGHT BROWSERS'
+                echo 'INSTALLING PLAYWRIGHT BROWSER'
                 echo '========================================'
 
                 bat '''
                     call venv\\Scripts\\activate
 
-                    python -m playwright install chromium firefox webkit
+                    python -m playwright install chromium
                 '''
             }
         }
 
 
-        stage('Execute Playwright BDD Tests') {
+        stage('Run Tests') {
 
             steps {
 
                 echo '========================================'
                 echo 'RUNNING PLAYWRIGHT BDD TESTS'
                 echo '========================================'
-
-                echo "Browser    : ${params.BROWSER}"
-                echo "Headless   : ${params.HEADLESS}"
-                echo "Slow Mo    : ${params.SLOW_MO}"
-                echo "Test Marker: ${params.TEST_MARKER}"
 
                 bat '''
                     if not exist reports mkdir reports
@@ -149,21 +112,12 @@ pipeline {
                     call venv\\Scripts\\activate
 
                     echo.
-                    echo Starting Pytest...
+                    echo Running complete test suite...
                     echo.
 
-                    if "%TEST_MARKER%"=="" (
-
-                        pytest -v -s ^
-                            --html=reports/report.html ^
-                            --self-contained-html
-
-                    ) else (
-
-                        pytest -m "%TEST_MARKER%" -v -s ^
-                            --html=reports/report.html ^
-                            --self-contained-html
-                    )
+                    pytest -v -s ^
+                        --html=reports/report.html ^
+                        --self-contained-html
                 '''
             }
         }
@@ -175,7 +129,7 @@ pipeline {
         always {
 
             echo '========================================'
-            echo 'PUBLISHING TEST REPORTS'
+            echo 'PUBLISHING TEST REPORT'
             echo '========================================'
 
             publishHTML(
@@ -202,10 +156,10 @@ pipeline {
 
             echo '''
 ========================================
-ORANGEHRM TEST EXECUTION SUCCESSFUL
+ORANGEHRM CI BUILD SUCCESSFUL
 ========================================
 
-All selected Playwright BDD tests passed.
+All Playwright BDD tests passed.
 
 ========================================
 '''
@@ -216,7 +170,7 @@ All selected Playwright BDD tests passed.
 
             echo '''
 ========================================
-ORANGEHRM TEST EXECUTION FAILED
+ORANGEHRM CI BUILD FAILED
 ========================================
 
 Check:
@@ -231,7 +185,7 @@ Check:
 
         cleanup {
 
-            echo 'Jenkins pipeline execution completed.'
+            echo 'Jenkins pipeline completed.'
         }
     }
 }
