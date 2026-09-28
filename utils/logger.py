@@ -1,10 +1,11 @@
 import logging
 from pathlib import Path
 
-# Ensure reports directory exists for logs
-REPORTS_DIR = Path(__file__).resolve().parent.parent / "reports"
+ROOT_DIR = Path(__file__).resolve().parent.parent
+REPORTS_DIR = ROOT_DIR / "reports"
 REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 LOG_FILE = REPORTS_DIR / "test_execution.log"
+ROOT_LOG_FILE = ROOT_DIR / "log.txt"
 
 
 def get_logger(name: str = "OrangeHRM") -> logging.Logger:
@@ -22,11 +23,17 @@ def get_logger(name: str = "OrangeHRM") -> logging.Logger:
             datefmt="%Y-%m-%d %H:%M:%S",
         )
 
-        # File Handler
+        # Reports Directory File Handler
         file_handler = logging.FileHandler(LOG_FILE, mode="a", encoding="utf-8")
         file_handler.setLevel(logging.DEBUG)
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
+
+        # Root log.txt Handler
+        root_file_handler = logging.FileHandler(ROOT_LOG_FILE, mode="a", encoding="utf-8")
+        root_file_handler.setLevel(logging.INFO)
+        root_file_handler.setFormatter(formatter)
+        logger.addHandler(root_file_handler)
 
         # Console Handler
         console_handler = logging.StreamHandler()

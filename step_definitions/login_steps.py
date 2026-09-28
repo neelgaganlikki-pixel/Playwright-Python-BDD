@@ -4,35 +4,45 @@ from pages.login_page import LoginPage
 from pages.dashboard_page import DashboardPage
 from config.config_reader import ConfigReader
 from utils.logger import get_logger
+from utils.data_recorder import DataRecorder
 
 logger = get_logger("LoginSteps")
 
 
 @given("the user navigates to the OrangeHRM login page")
 def navigate_to_login(page: Page):
+    logger.info("[STEP] Given the user navigates to the OrangeHRM login page")
     login_page = LoginPage(page)
     login_page.load()
     expect(login_page.username_input).to_be_visible()
+    logger.info("Confirmed login page is loaded and username input is visible")
 
 
 @given("the user is logged into the OrangeHRM portal")
 def ensure_user_logged_in(page: Page):
+    logger.info("[STEP] Given the user is logged into the OrangeHRM portal")
     login_page = LoginPage(page)
     dashboard_page = DashboardPage(page)
     login_page.login()
     assert dashboard_page.is_dashboard_displayed(), "User was not redirected to Dashboard after login."
+    logger.info("Confirmed user is authenticated and on Dashboard")
 
 
 @when("the user submits valid credentials")
 def submit_valid_credentials(page: Page):
+    username = ConfigReader.get_username()
+    logger.info(f"[STEP] When the user submits valid credentials for user: '{username}'")
+    DataRecorder.record("Authentication", "Valid Login", {"Username": username, "Password": "[MASKED_ADMIN_PASSWORD]"})
     login_page = LoginPage(page)
-    login_page.enter_username(ConfigReader.get_username())
+    login_page.enter_username(username)
     login_page.enter_password(ConfigReader.get_password())
     login_page.click_login()
 
 
 @when(parsers.parse('the user enters username "{username}" and password "{password}"'))
 def enter_custom_credentials(page: Page, username: str, password: str):
+    logger.info(f"[STEP] When the user enters username '{username}' and masked password")
+    DataRecorder.record("Authentication", "Invalid/Custom Login", {"Username": username, "Password": password})
     login_page = LoginPage(page)
     login_page.enter_username(username)
     login_page.enter_password(password)
@@ -40,12 +50,15 @@ def enter_custom_credentials(page: Page, username: str, password: str):
 
 @when("clicks the login button")
 def click_login(page: Page):
+    logger.info("[STEP] And clicks the login button")
     login_page = LoginPage(page)
     login_page.click_login()
 
 
 @when("the user submits empty credentials")
 def submit_empty_credentials(page: Page):
+    logger.info("[STEP] When the user submits empty credentials")
+    DataRecorder.record("Authentication", "Empty Login", {"Username": "<EMPTY>", "Password": "<EMPTY>"})
     login_page = LoginPage(page)
     login_page.enter_username("")
     login_page.enter_password("")
@@ -54,43 +67,56 @@ def submit_empty_credentials(page: Page):
 
 @then("the user should be redirected to the Dashboard page")
 def verify_dashboard_redirection(page: Page):
+    logger.info("[STEP] Then the user should be redirected to the Dashboard page")
     dashboard_page = DashboardPage(page)
     assert dashboard_page.is_dashboard_displayed(), "Dashboard was not displayed."
+    logger.info("Dashboard verification successful")
 
 
 @then("the dashboard header should be displayed")
 def verify_dashboard_header(page: Page):
+    logger.info("[STEP] And the dashboard header should be displayed")
     dashboard_page = DashboardPage(page)
     header = dashboard_page.get_dashboard_header_text()
     assert "Dashboard" in header, f"Expected 'Dashboard' in header, got '{header}'"
+    logger.info(f"Dashboard header text validated: '{header}'")
 
 
 @then(parsers.parse('an error message stating "{expected_error}" should be displayed'))
 def verify_login_error_message(page: Page, expected_error: str):
+    logger.info(f"[STEP] Then an error message stating '{expected_error}' should be displayed")
     login_page = LoginPage(page)
     error_msg = login_page.get_error_message()
+    logger.info(f"Observed error message from UI: '{error_msg}'")
     assert expected_error.lower() in error_msg.lower(), (
         f"Expected error message '{expected_error}', but got '{error_msg}'"
     )
+    logger.info("Login error message assertion passed")
 
 
 @then(parsers.parse('input field validation message "{expected_validation}" should be displayed'))
 def verify_field_required_message(page: Page, expected_validation: str):
+    logger.info(f"[STEP] Then input field validation message '{expected_validation}' should be displayed")
     login_page = LoginPage(page)
     user_req = login_page.get_username_required_message()
     pwd_req = login_page.get_password_required_message()
+    logger.info(f"Validation messages observed: username='{user_req}', password='{pwd_req}'")
     assert expected_validation in user_req or expected_validation in pwd_req, (
         f"Validation '{expected_validation}' not displayed. Found: username='{user_req}', password='{pwd_req}'"
     )
+    logger.info("Required field validation assertion passed")
 
 
 @when("the user clicks the logout button")
 def click_logout(page: Page):
+    logger.info("[STEP] When the user clicks the logout button")
     dashboard_page = DashboardPage(page)
     dashboard_page.logout()
 
 
 @then("the user should be redirected to the login page")
 def verify_login_page_redirection(page: Page):
+    logger.info("[STEP] Then the user should be redirected to the login page")
     login_page = LoginPage(page)
     assert login_page.is_at_login_page(), "User was not redirected back to Login page."
+    logger.info("Login page redirection confirmed")

@@ -20,6 +20,7 @@ class EmployeePage(BasePage):
         self.input_middle_name = page.locator("input[name='middleName']")
         self.input_last_name = page.locator("input[name='lastName']")
         self.input_emp_id = page.locator("div.oxd-input-group:has-text('Employee Id') input")
+        self.emp_id_error = page.locator("div.oxd-input-group:has-text('Employee Id') .oxd-input-group__message")
         self.btn_save = page.locator("button[type='submit']:has-text('Save')")
         self.personal_details_header = page.locator("h6:has-text('Personal Details')")
 
@@ -35,8 +36,21 @@ class EmployeePage(BasePage):
 
     def go_to_add_employee(self) -> None:
         self.logger.info("Opening Add Employee tab")
-        self.tab_add_employee.click()
+        add_btn = self.page.locator("a:has-text('Add Employee'), button:has-text('Add')").first
+        add_btn.wait_for(state="visible", timeout=20000)
+        add_btn.click()
         self.input_first_name.wait_for(state="visible", timeout=20000)
+
+    def set_employee_id(self, emp_id: str) -> None:
+        """
+        Clears the auto-suggested demo employee ID (which often collides with existing IDs)
+        and populates the unique custom employee ID.
+        """
+        self.logger.info(f"Setting unique Employee ID: '{emp_id}'")
+        self.input_emp_id.click()
+        self.input_emp_id.press("Control+a")
+        self.input_emp_id.press("Backspace")
+        self.input_emp_id.fill(emp_id)
 
     def go_to_employee_list(self) -> None:
         self.logger.info("Opening Employee List tab")
@@ -51,8 +65,7 @@ class EmployeePage(BasePage):
         self.input_last_name.fill(last_name)
 
         if emp_id:
-            self.input_emp_id.fill("")
-            self.input_emp_id.fill(emp_id)
+            self.set_employee_id(emp_id)
             used_id = emp_id
         else:
             used_id = self.input_emp_id.input_value()
@@ -71,14 +84,26 @@ class EmployeePage(BasePage):
 
     def get_first_employee_id_from_list(self, timeout: int = 20000) -> str:
         self.table_cards.first.wait_for(state="visible", timeout=timeout)
-        # ID is usually in the 2nd cell (index 1)
         first_card = self.table_cards.first
-        emp_id = first_card.locator(".oxd-table-cell").nth(1).inner_text().strip()
-        self.logger.info(f"Retrieved first employee ID: {emp_id}")
+        cells = first_card.locator(".oxd-table-cell")
+        if cells.count() > 1:
+            emp_id = cells.nth(1).inner_text().strip()
+        else:
+            # Fallback for card / mobile layout: text like "Id 0399\nFirst Name..."
+            card_text = first_card.inner_text()
+            import re
+            match = re.search(r"Id\s*(\w+)", card_text, re.IGNORECASE)
+            emp_id = match.group(1).strip() if match else card_text.split()[0].strip()
+        self.logger.info(f"Retrieved first employee ID: '{emp_id}'")
         return emp_id
 
     def search_by_employee_id(self, emp_id: str) -> None:
-        self.logger.info(f"Searching employee by ID: {emp_id}")
+        self.logger.info(f"Searching employee by ID: '{emp_id}'")
+        # Ensure filter section is expanded if collapsed
+        if not self.filter_emp_id.is_visible():
+            filter_header = self.page.locator(".oxd-table-filter-header")
+            if filter_header.is_visible():
+                filter_header.click()
         self.filter_emp_id.wait_for(state="visible", timeout=15000)
         self.filter_emp_id.fill("")
         self.filter_emp_id.fill(emp_id)

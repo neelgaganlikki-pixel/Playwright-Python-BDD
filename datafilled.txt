@@ -1,0 +1,834 @@
+================================================================================
+ORANGEHRM AUTOMATION TEST DATA CATALOGUE
+File: datafilled.txt
+Target Application: https://opensource-demo.orangehrmlive.com/
+================================================================================
+
+This document details all test input data, fields filled, generation patterns, 
+and sample values used across every test case in the framework.
+
+--------------------------------------------------------------------------------
+1. AUTHENTICATION & SESSION MODULE (features/login.feature)
+--------------------------------------------------------------------------------
+
+Scenario 1: Successful login with valid credentials (@smoke, @login)
+  - Field: Username
+      * Locator: input[name='username']
+      * Value Filled: Admin
+      * Source: ConfigReader.get_username() / .env
+  - Field: Password
+      * Locator: input[name='password']
+      * Value Filled: admin123
+      * Source: ConfigReader.get_password() / .env
+  - Expected Result: Redirection to Dashboard (/web/index.php/dashboard/index)
+
+Scenario 2: Unsuccessful login with invalid credentials (@regression, @login)
+  - Field: Username
+      * Locator: input[name='username']
+      * Value Filled: InvalidUser
+  - Field: Password
+      * Locator: input[name='password']
+      * Value Filled: invalidPass123
+  - Expected Result: Alert banner with text "Invalid credentials"
+
+Scenario 3: Login validation with empty credentials (@regression, @login)
+  - Field: Username
+      * Locator: input[name='username']
+      * Value Filled: "" (Empty string)
+  - Field: Password
+      * Locator: input[name='password']
+      * Value Filled: "" (Empty string)
+  - Expected Result: Field validation message "Required" under empty inputs
+
+Scenario 4: User logs out successfully (@smoke, @login)
+  - Field: Username
+      * Locator: input[name='username']
+      * Value Filled: Admin
+  - Field: Password
+      * Locator: input[name='password']
+      * Value Filled: admin123
+  - Action: Click User Profile Dropdown (.oxd-userdropdown-tab) -> Click "Logout"
+  - Expected Result: Redirection to Login page (/web/index.php/auth/login)
+
+
+--------------------------------------------------------------------------------
+2. EMPLOYEE MANAGEMENT / PIM MODULE (features/employee.feature)
+--------------------------------------------------------------------------------
+
+Scenario 1: Add a new employee successfully (@smoke, @employee)
+  - Form: PIM > Add Employee (/web/index.php/pim/addEmployee)
+  - Field 1: First Name
+      * Locator: input[name='firstName']
+      * Pattern: "Auto" + 4 random uppercase/lowercase letters
+      * Sample Filled Values: AutopoNp, AutoPIBN, AutoFgJD
+  - Field 2: Middle Name
+      * Locator: input[name='middleName']
+      * Pattern: "Mid" + 3 random letters
+      * Sample Filled Values: MidszQ, MidivM, MidqTi
+  - Field 3: Last Name
+      * Locator: input[name='lastName']
+      * Pattern: "QA" + 4 random letters
+      * Sample Filled Values: QAsNPV, QARaCE, QAlywk
+  - Field 4: Employee Id
+      * Locator: div.oxd-input-group:has-text('Employee Id') input
+      * Pattern: 6-digit random integer between 800000 and 999999
+      * Sample Filled Values: 856835, 851884, 914208
+      * Note: Overwrites default low-range demo ID (e.g. 0616) to avoid collision
+  - Action: Click Save (button[type='submit']:has-text('Save'))
+  - Expected Result: Redirection to Personal Details page (/pim/viewPersonalDetails)
+
+Scenario 2: Search for an existing employee by ID (@regression, @employee)
+  - Form: PIM > Employee List (/web/index.php/pim/viewEmployeeList)
+  - Field: Employee Id
+      * Locator: div.oxd-input-group:has-text('Employee Id') input
+      * Value Filled: Retrieved dynamically from 1st row of table
+      * Sample Filled Values: 0399, 0295, 0454
+  - Action: Click Search (button[type='submit']:has-text('Search'))
+  - Expected Result: Results table displays records containing the searched ID
+
+
+--------------------------------------------------------------------------------
+3. LEAVE MANAGEMENT MODULE (features/leave.feature)
+--------------------------------------------------------------------------------
+
+Scenario 1: View Leave List and apply search filter (@smoke, @leave)
+  - Form: Leave > Leave List (/web/index.php/leave/viewLeaveList)
+  - Filter Fields:
+      * From Date: input within "From Date" group (e.g. 2026-01-01)
+      * To Date: input within "To Date" group (e.g. 2026-12-31)
+      * Show Leave with Status: Pre-selected defaults ("Pending Approval", etc.)
+      * Leave Type: All / Specific Leave types
+  - Action: Click Search (button[type='submit']:has-text('Search'))
+  - Expected Result: Results container (.orangehrm-paper-container) is visible
+
+Scenario 2: Reset leave search filter (@regression, @leave)
+  - Form: Leave > Leave List (/web/index.php/leave/viewLeaveList)
+  - Action: Click Reset (button[type='reset']:has-text('Reset'))
+  - Expected Result: Filter resets and results container remains displayed
+
+
+--------------------------------------------------------------------------------
+4. RECRUITMENT & CANDIDATE MODULE (features/recruitment.feature)
+--------------------------------------------------------------------------------
+
+Scenario 1: View candidate list in recruitment module (@smoke, @recruitment)
+  - Page: Recruitment > Candidates (/web/index.php/recruitment/viewCandidates)
+  - Action: View candidates table
+  - Expected Result: Candidate records table and Add button visible
+
+Scenario 2: Add a new candidate successfully (@smoke, @recruitment)
+  - Form: Recruitment > Add Candidate (/web/index.php/recruitment/addCandidate)
+  - Field 1: First Name
+      * Locator: input[name='firstName']
+      * Pattern: "Cand" + 4 random letters
+      * Sample Filled Values: CandRaom, CandfImr, CandehIH
+  - Field 2: Last Name
+      * Locator: input[name='lastName']
+      * Pattern: "Tester" + 3 random letters
+      * Sample Filled Values: TesterLtK, TesterNDv, TesterUsn
+  - Field 3: Email
+      * Locator: div.oxd-input-group:has-text('Email') input
+      * Pattern: "candidate_" + suffix + "_" + 3digits + "@testorangehrm.com"
+      * Sample Filled Values: candidate_Raom_850@testorangehrm.com,
+                              candidate_fImr_600@testorangehrm.com
+  - Field 4: Contact Number
+      * Locator: div.oxd-input-group:has-text('Contact Number') input
+      * Pattern: "98765" + 5 random digits
+      * Sample Filled Values: 9876584219, 9876512345
+  - Field 5: Keywords
+      * Value: "QA, Playwright, Python, Automation"
+  - Field 6: Notes
+      * Value: "Automated recruitment test candidate created by Playwright BDD suite."
+  - Action: Click Save (button[type='submit']:has-text('Save'))
+  - Expected Result: Candidate saved and Application Stage screen is displayed
+
+
+--------------------------------------------------------------------------------
+5. BUZZ SOCIAL NEWSFEED MODULE (features/buzz.feature)
+--------------------------------------------------------------------------------
+
+Scenario 1: Post a status update to Buzz newsfeed (@smoke, @buzz)
+  - Page: Buzz > Newsfeed (/web/index.php/buzz/viewBuzz)
+  - Field: What's on your mind? Textarea
+      * Locator: textarea.oxd-buzz-post-input
+      * Pattern: "Automation Status Update [" + 6-char random token + "] at " + Timestamp
+      * Sample Filled Values:
+          - Automation Status Update [GSmGHY] at 2026-09-27 13:14:41
+          - Automation Status Update [GwaJPO] at 2026-09-27 13:17:54
+          - Automation Status Update [Pguoge] at 2026-09-27 13:20:39
+  - Action: Click Post (button[type='submit']:has-text('Post'))
+  - Expected Result: Post is published and visible in newsfeed (.orangehrm-buzz-post-body-text)
+
+Scenario 2: Verify Buzz feed loads existing posts (@regression, @buzz)
+  - Page: Buzz > Newsfeed (/web/index.php/buzz/viewBuzz)
+  - Action: Navigate to Buzz page
+  - Expected Result: Newsfeed container (.orangehrm-buzz-newsfeed) is visible
+
+
+================================================================================
+SUMMARY TABLE OF ALL INPUT FIELDS FILLED
+================================================================================
+MODULE       | FIELD NAME        | LOCATOR                                   | EXAMPLE VALUE FILLED
+-------------+-------------------+-------------------------------------------+----------------------------------------------
+Login        | Username          | input[name='username']                    | Admin / InvalidUser / ""
+Login        | Password          | input[name='password']                    | admin123 / invalidPass123 / ""
+Employee     | First Name        | input[name='firstName']                   | AutopoNp / AutoPIBN
+Employee     | Middle Name       | input[name='middleName']                  | MidszQ / MidivM
+Employee     | Last Name         | input[name='lastName']                    | QAsNPV / QARaCE
+Employee     | Employee Id       | div.oxd-input-group:has-text('Emp Id') in | 856835 / 851884 (Unique 6-digit)
+Employee     | Search Emp Id     | div.oxd-input-group:has-text('Emp Id') in | 0399 / 0295 (Existing ID from table)
+Leave        | From Date         | div.oxd-input-group:has-text('From') in   | 2026-01-01
+Leave        | To Date           | div.oxd-input-group:has-text('To') in     | 2026-12-31
+Recruitment  | First Name        | input[name='firstName']                   | CandRaom / CandfImr
+Recruitment  | Last Name         | input[name='lastName']                    | TesterLtK / TesterNDv
+Recruitment  | Email             | div.oxd-input-group:has-text('Email') in  | candidate_Raom_850@testorangehrm.com
+Recruitment  | Contact Number    | div.oxd-input-group:has-text('Contact') in| 9876584219
+Recruitment  | Keywords          | textarea / input                          | QA, Playwright, Python, Automation
+Buzz         | Status Post Input | textarea.oxd-buzz-post-input              | Automation Status Update [GSmGHY] at 13:14:41
+================================================================================
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:47:54
+Module:      Employee Management (PIM)
+Action:      Add New Employee
+Data Filled:
+  * First Name          : AutoWMbj
+  * Middle Name         : MidzOw
+  * Last Name           : QAhIHS
+  * Employee Id         : 92433
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:48:27
+Module:      Buzz Newsfeed
+Action:      Publish Status Update
+Data Filled:
+  * Status Post Content : Automation Status Update [Fxjqdm] at 2026-09-28 19:48:27
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:49:32
+Module:      Authentication
+Action:      Valid Login
+Data Filled:
+  * Username            : Admin
+  * Password            : [MASKED_ADMIN_PASSWORD]
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:49:43
+Module:      Authentication
+Action:      Invalid/Custom Login
+Data Filled:
+  * Username            : InvalidUser
+  * Password            : invalidPass123
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:49:49
+Module:      Authentication
+Action:      Empty Login
+Data Filled:
+  * Username            : <EMPTY>
+  * Password            : <EMPTY>
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:50:11
+Module:      Employee Management (PIM)
+Action:      Add New Employee
+Data Filled:
+  * First Name          : AutoKFGu
+  * Middle Name         : MidmlF
+  * Last Name           : QAgIzd
+  * Employee Id         : 94886
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:50:32
+Module:      Employee Management (PIM)
+Action:      Search Employee by ID
+Data Filled:
+  * Search Employee ID  : dfgsjsjdh
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:50:41
+Module:      Leave Management
+Action:      Search Leave List
+Data Filled:
+  * Action              : Applied search criteria on Leave List
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:51:03
+Module:      Leave Management
+Action:      Reset Leave List Filters
+Data Filled:
+  * Action              : Reset filters back to default
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:51:38
+Module:      Recruitment
+Action:      Add New Candidate
+Data Filled:
+  * First Name          : CandzJWn
+  * Last Name           : TesterdGG
+  * Email               : candidate_zJWn_614@testorangehrm.com
+  * Contact Number      : 9876550372
+  * Keywords            : QA, Playwright, Python, Automation
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:51:54
+Module:      Buzz Newsfeed
+Action:      Publish Status Update
+Data Filled:
+  * Status Post Content : Automation Status Update [YAPwzE] at 2026-09-28 19:51:54
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:52:29
+Module:      Authentication
+Action:      Valid Login
+Data Filled:
+  * Username            : Admin
+  * Password            : [MASKED_ADMIN_PASSWORD]
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:52:43
+Module:      Authentication
+Action:      Invalid/Custom Login
+Data Filled:
+  * Username            : InvalidUser
+  * Password            : invalidPass123
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:52:50
+Module:      Authentication
+Action:      Empty Login
+Data Filled:
+  * Username            : <EMPTY>
+  * Password            : <EMPTY>
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:53:08
+Module:      Employee Management (PIM)
+Action:      Add New Employee
+Data Filled:
+  * First Name          : AutodnTb
+  * Middle Name         : MidsbV
+  * Last Name           : QAOmZl
+  * Employee Id         : 93212
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:53:21
+Module:      Employee Management (PIM)
+Action:      Search Employee by ID
+Data Filled:
+  * Search Employee ID  : dfgsjsjdh
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:53:37
+Module:      Leave Management
+Action:      Search Leave List
+Data Filled:
+  * Action              : Applied search criteria on Leave List
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:54:03
+Module:      Leave Management
+Action:      Reset Leave List Filters
+Data Filled:
+  * Action              : Reset filters back to default
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:54:38
+Module:      Recruitment
+Action:      Add New Candidate
+Data Filled:
+  * First Name          : CandjcdI
+  * Last Name           : TesterWek
+  * Email               : candidate_jcdI_493@testorangehrm.com
+  * Contact Number      : 9876555661
+  * Keywords            : QA, Playwright, Python, Automation
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 19:54:56
+Module:      Buzz Newsfeed
+Action:      Publish Status Update
+Data Filled:
+  * Status Post Content : Automation Status Update [XnngWk] at 2026-09-28 19:54:56
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 20:40:34
+Module:      Authentication
+Action:      Valid Login
+Data Filled:
+  * Username            : Admin
+  * Password            : [MASKED_ADMIN_PASSWORD]
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 20:40:41
+Module:      Authentication
+Action:      Invalid/Custom Login
+Data Filled:
+  * Username            : InvalidUser
+  * Password            : invalidPass123
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 20:40:47
+Module:      Authentication
+Action:      Empty Login
+Data Filled:
+  * Username            : <EMPTY>
+  * Password            : <EMPTY>
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 20:41:03
+Module:      Employee Management (PIM)
+Action:      Add New Employee
+Data Filled:
+  * First Name          : AutotGCJ
+  * Middle Name         : MidXFN
+  * Last Name           : QAzusO
+  * Employee Id         : 94129
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 20:41:17
+Module:      Employee Management (PIM)
+Action:      Search Employee by ID
+Data Filled:
+  * Search Employee ID  : dfgsjsjdh
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 20:41:24
+Module:      Leave Management
+Action:      Search Leave List
+Data Filled:
+  * Action              : Applied search criteria on Leave List
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 20:41:30
+Module:      Authentication
+Action:      Valid Login
+Data Filled:
+  * Username            : Admin
+  * Password            : [MASKED_ADMIN_PASSWORD]
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 20:41:44
+Module:      Leave Management
+Action:      Reset Leave List Filters
+Data Filled:
+  * Action              : Reset filters back to default
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 20:42:13
+Module:      Recruitment
+Action:      Add New Candidate
+Data Filled:
+  * First Name          : CandMTYI
+  * Last Name           : TesterMcU
+  * Email               : candidate_MTYI_004@testorangehrm.com
+  * Contact Number      : 9876520593
+  * Keywords            : QA, Playwright, Python, Automation
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 20:42:25
+Module:      Buzz Newsfeed
+Action:      Publish Status Update
+Data Filled:
+  * Status Post Content : Automation Status Update [CadhmD] at 2026-09-28 20:42:25
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 20:55:40
+Module:      Authentication
+Action:      Valid Login
+Data Filled:
+  * Username            : Admin
+  * Password            : [MASKED_ADMIN_PASSWORD]
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 20:55:56
+Module:      Authentication
+Action:      Invalid/Custom Login
+Data Filled:
+  * Username            : InvalidUser
+  * Password            : invalidPass123
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 20:56:12
+Module:      Authentication
+Action:      Empty Login
+Data Filled:
+  * Username            : <EMPTY>
+  * Password            : <EMPTY>
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 20:56:57
+Module:      Employee Management (PIM)
+Action:      Add New Employee
+Data Filled:
+  * First Name          : AutoQuwp
+  * Middle Name         : MiddkA
+  * Last Name           : QALKLw
+  * Employee Id         : 96803
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 20:57:29
+Module:      Employee Management (PIM)
+Action:      Search Employee by ID
+Data Filled:
+  * Search Employee ID  : dfgsjsjdh
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 20:57:49
+Module:      Leave Management
+Action:      Search Leave List
+Data Filled:
+  * Action              : Applied search criteria on Leave List
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 20:59:58
+Module:      Authentication
+Action:      Valid Login
+Data Filled:
+  * Username            : Admin
+  * Password            : [MASKED_ADMIN_PASSWORD]
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:00:13
+Module:      Authentication
+Action:      Invalid/Custom Login
+Data Filled:
+  * Username            : InvalidUser
+  * Password            : invalidPass123
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:00:30
+Module:      Authentication
+Action:      Empty Login
+Data Filled:
+  * Username            : <EMPTY>
+  * Password            : <EMPTY>
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:04:49
+Module:      Authentication
+Action:      Valid Login
+Data Filled:
+  * Username            : Admin
+  * Password            : [MASKED_ADMIN_PASSWORD]
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:05:07
+Module:      Authentication
+Action:      Invalid/Custom Login
+Data Filled:
+  * Username            : InvalidUser
+  * Password            : invalidPass123
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:05:22
+Module:      Authentication
+Action:      Empty Login
+Data Filled:
+  * Username            : <EMPTY>
+  * Password            : <EMPTY>
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:16:22
+Module:      Authentication
+Action:      Valid Login
+Data Filled:
+  * Username            : Admin
+  * Password            : [MASKED_ADMIN_PASSWORD]
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:18:54
+Module:      Authentication
+Action:      Empty Login
+Data Filled:
+  * Username            : <EMPTY>
+  * Password            : <EMPTY>
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:19:41
+Module:      Authentication
+Action:      Valid Login
+Data Filled:
+  * Username            : Admin
+  * Password            : [MASKED_ADMIN_PASSWORD]
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:19:58
+Module:      Authentication
+Action:      Invalid/Custom Login
+Data Filled:
+  * Username            : InvalidUser
+  * Password            : invalidPass123
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:20:12
+Module:      Authentication
+Action:      Empty Login
+Data Filled:
+  * Username            : <EMPTY>
+  * Password            : <EMPTY>
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:21:00
+Module:      Employee Management (PIM)
+Action:      Add New Employee
+Data Filled:
+  * First Name          : AutoqJYB
+  * Middle Name         : MidqDJ
+  * Last Name           : QAIcOb
+  * Employee Id         : 90886
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:21:34
+Module:      Employee Management (PIM)
+Action:      Search Employee by ID
+Data Filled:
+  * Search Employee ID  : dfgsjsjdh
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:22:05
+Module:      Leave Management
+Action:      Search Leave List
+Data Filled:
+  * Action              : Applied search criteria on Leave List
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:22:35
+Module:      Leave Management
+Action:      Reset Leave List Filters
+Data Filled:
+  * Action              : Reset filters back to default
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:23:27
+Module:      Recruitment
+Action:      Add New Candidate
+Data Filled:
+  * First Name          : CandAfir
+  * Last Name           : TesterMiy
+  * Email               : candidate_Afir_767@testorangehrm.com
+  * Contact Number      : 9876579210
+  * Keywords            : QA, Playwright, Python, Automation
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:24:04
+Module:      Buzz Newsfeed
+Action:      Publish Status Update
+Data Filled:
+  * Status Post Content : Automation Status Update [fJYlVh] at 2026-09-28 21:24:04
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:37:40
+Module:      Authentication
+Action:      Valid Login
+Data Filled:
+  * Username            : Admin
+  * Password            : [MASKED_ADMIN_PASSWORD]
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:37:53
+Module:      Authentication
+Action:      Invalid/Custom Login
+Data Filled:
+  * Username            : InvalidUser
+  * Password            : invalidPass123
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:38:09
+Module:      Authentication
+Action:      Empty Login
+Data Filled:
+  * Username            : <EMPTY>
+  * Password            : <EMPTY>
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:39:01
+Module:      Employee Management (PIM)
+Action:      Add New Employee
+Data Filled:
+  * First Name          : AutoFixS
+  * Middle Name         : MidSgA
+  * Last Name           : QAnALr
+  * Employee Id         : 91548
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:39:38
+Module:      Employee Management (PIM)
+Action:      Search Employee by ID
+Data Filled:
+  * Search Employee ID  : dfgsjsjdh
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:39:58
+Module:      Leave Management
+Action:      Search Leave List
+Data Filled:
+  * Action              : Applied search criteria on Leave List
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:40:30
+Module:      Leave Management
+Action:      Reset Leave List Filters
+Data Filled:
+  * Action              : Reset filters back to default
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:41:19
+Module:      Recruitment
+Action:      Add New Candidate
+Data Filled:
+  * First Name          : CandxYms
+  * Last Name           : TesterqaT
+  * Email               : candidate_xYms_773@testorangehrm.com
+  * Contact Number      : 9876537115
+  * Keywords            : QA, Playwright, Python, Automation
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:41:46
+Module:      Buzz Newsfeed
+Action:      Publish Status Update
+Data Filled:
+  * Status Post Content : Automation Status Update [MLDfZx] at 2026-09-28 21:41:46
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:47:06
+Module:      Authentication
+Action:      Valid Login
+Data Filled:
+  * Username            : Admin
+  * Password            : [MASKED_ADMIN_PASSWORD]
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:47:19
+Module:      Authentication
+Action:      Invalid/Custom Login
+Data Filled:
+  * Username            : InvalidUser
+  * Password            : invalidPass123
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:47:34
+Module:      Authentication
+Action:      Empty Login
+Data Filled:
+  * Username            : <EMPTY>
+  * Password            : <EMPTY>
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:48:19
+Module:      Employee Management (PIM)
+Action:      Add New Employee
+Data Filled:
+  * First Name          : AutoulCo
+  * Middle Name         : MidZiM
+  * Last Name           : QALPCB
+  * Employee Id         : 96527
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:48:56
+Module:      Employee Management (PIM)
+Action:      Search Employee by ID
+Data Filled:
+  * Search Employee ID  : dfgsjsjdh
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:49:25
+Module:      Leave Management
+Action:      Search Leave List
+Data Filled:
+  * Action              : Applied search criteria on Leave List
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:49:57
+Module:      Leave Management
+Action:      Reset Leave List Filters
+Data Filled:
+  * Action              : Reset filters back to default
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:50:48
+Module:      Recruitment
+Action:      Add New Candidate
+Data Filled:
+  * First Name          : CandzBYz
+  * Last Name           : TestergaW
+  * Email               : candidate_zBYz_015@testorangehrm.com
+  * Contact Number      : 9876578211
+  * Keywords            : QA, Playwright, Python, Automation
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+TEST RUN RECORD: 2026-09-28 21:51:18
+Module:      Buzz Newsfeed
+Action:      Publish Status Update
+Data Filled:
+  * Status Post Content : Automation Status Update [QtAapK] at 2026-09-28 21:51:18
+--------------------------------------------------------------------------------

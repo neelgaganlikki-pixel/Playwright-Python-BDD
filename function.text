@@ -1,0 +1,275 @@
+================================================================================
+ORANGEHRM TEST AUTOMATION - COMPLETE TEST SPECIFICATION & FUNCTIONAL BREAKDOWN
+File: function.text
+Target Application: https://opensource-demo.orangehrmlive.com/
+Framework: Playwright + Python + pytest-bdd
+Total Scenarios: 12 | Status: 100% Passed
+================================================================================
+
+This document details all 12 automated test cases across the 5 core modules of
+OrangeHRM, including their purpose, step-by-step actions, locators, test data
+handling, and assertions.
+
+--------------------------------------------------------------------------------
+TEST SUITE SUMMARY MATRIX
+--------------------------------------------------------------------------------
+#   | Test Scenario                                   | Feature File           | Tags                   | Status
+----+-------------------------------------------------+------------------------+------------------------+--------
+01  | test_successful_login_with_valid_credentials    | features/login.feature | @smoke, @login         | PASSED
+02  | test_unsuccessful_login_with_invalid_credentials| features/login.feature | @regression, @login    | PASSED
+03  | test_login_validation_with_empty_credentials   | features/login.feature | @regression, @login    | PASSED
+04  | test_user_logs_out_successfully                 | features/login.feature | @smoke, @login         | PASSED
+05  | test_add_a_new_employee_successfully           | features/employee.feat | @smoke, @employee      | PASSED
+06  | test_search_for_an_existing_employee_by_id     | features/employee.feat | @regression, @employee | PASSED
+07  | test_view_leave_list_and_apply_search_filter   | features/leave.feature | @smoke, @leave         | PASSED
+08  | test_reset_leave_search_filter                 | features/leave.feature | @regression, @leave    | PASSED
+09  | test_view_candidate_list_in_recruitment_module | features/recruit.feat  | @smoke, @recruitment   | PASSED
+10  | test_add_a_new_candidate_successfully          | features/recruit.feat  | @smoke, @recruitment   | PASSED
+11  | test_post_a_status_update_to_buzz_newsfeed     | features/buzz.feature  | @smoke, @buzz          | PASSED
+12  | test_verify_buzz_feed_loads_existing_posts     | features/buzz.feature  | @regression, @buzz     | PASSED
+
+================================================================================
+STEP-BY-STEP DETAILS FOR EACH TEST CASE
+================================================================================
+
+--------------------------------------------------------------------------------
+1. AUTHENTICATION & SESSION MODULE (features/login.feature)
+--------------------------------------------------------------------------------
+
+Test 1: test_successful_login_with_valid_credentials
+  - Feature: Authentication and Session Management
+  - Tags: @smoke, @login
+  - Objective: Verifies that an administrator can successfully authenticate and
+               access the dashboard.
+  - Step-by-Step Flow:
+      1. Given the user navigates to the OrangeHRM login page
+         * Directs browser to https://opensource-demo.orangehrmlive.com/.
+         * Waits for DOM content and verifies input[name='username'] is visible.
+      2. When the user submits valid credentials
+         * Retrieves credentials securely from ConfigReader / .env (Admin / admin123).
+         * Fills input[name='username'] with Admin.
+         * Fills input[name='password'] with admin123.
+         * Clicks button[type='submit'] (Login button).
+      3. Then the user should be redirected to the Dashboard page
+         * Asserts that current URL contains /web/index.php/dashboard/index.
+      4. And the dashboard header should be displayed
+         * Locates .oxd-topbar-header-breadcrumb and asserts text equals "Dashboard".
+
+Test 2: test_unsuccessful_login_with_invalid_credentials
+  - Feature: Authentication and Session Management
+  - Tags: @regression, @login
+  - Objective: Verifies system security and error alert display when invalid
+               credentials are provided.
+  - Step-by-Step Flow:
+      1. Given the user navigates to the OrangeHRM login page
+         * Loads the login screen and confirms visibility.
+      2. When the user enters username "InvalidUser" and password "invalidPass123"
+         * Fills input[name='username'] with "InvalidUser".
+         * Fills input[name='password'] with "invalidPass123".
+      3. And clicks the login button
+         * Submits credentials via button[type='submit'].
+      4. Then an error message stating "Invalid credentials" should be displayed
+         * Waits for error banner .oxd-alert-content-text.
+         * Asserts banner text matches "Invalid credentials".
+
+Test 3: test_login_validation_with_empty_credentials
+  - Feature: Authentication and Session Management
+  - Tags: @regression, @login
+  - Objective: Verifies front-end input validation when the user attempts to submit
+               the form without entering credentials.
+  - Step-by-Step Flow:
+      1. Given the user navigates to the OrangeHRM login page
+         * Loads the login page.
+      2. When the user submits empty credentials
+         * Clears username and password fields (leaves them empty "").
+         * Clicks the login submit button.
+      3. Then input field validation message "Required" should be displayed
+         * Locates .oxd-input-field-error-message.
+         * Asserts validation labels for username and password display "Required".
+
+Test 4: test_user_logs_out_successfully
+  - Feature: Authentication and Session Management
+  - Tags: @smoke, @login
+  - Objective: Verifies session termination and logout redirection back to login.
+  - Step-by-Step Flow:
+      1. Given the user is logged into the OrangeHRM portal
+         * Pre-condition: navigates to login, inputs valid credentials, lands on dashboard.
+      2. When the user clicks the logout button
+         * Clicks user profile dropdown .oxd-userdropdown-tab.
+         * Clicks "Logout" (a:has-text('Logout')).
+      3. Then the user should be redirected to the login page
+         * Asserts URL contains /auth/login.
+         * Asserts login username field input[name='username'] is visible again.
+
+
+--------------------------------------------------------------------------------
+2. EMPLOYEE MANAGEMENT / PIM MODULE (features/employee.feature)
+--------------------------------------------------------------------------------
+
+Test 5: test_add_a_new_employee_successfully
+  - Feature: Employee Management (PIM)
+  - Tags: @smoke, @employee
+  - Objective: Validates the end-to-end creation of an employee record with
+               collision-free unique IDs.
+  - Step-by-Step Flow:
+      1. Given the user is logged into the OrangeHRM portal
+         * Authenticates as Admin and accesses dashboard.
+      2. When the user navigates to the PIM module
+         * Clicks PIM on the left sidebar (a[href*='viewPimModule']).
+      3. And clicks on the Add Employee tab
+         * Clicks top bar tab a:has-text('Add Employee').
+         * Waits for input[name='firstName'] to appear.
+      4. And provides valid employee details
+         * Generates dynamic data using TestDataGenerator:
+             - First Name: "Auto" + random string (e.g. AutoFixS)
+             - Middle Name: "Mid" + random string (e.g. MidSgA)
+             - Last Name: "QA" + random string (e.g. QAnALr)
+             - Employee ID: Random 6-digit ID between 800000 - 999999 (e.g. 91548)
+         * Records all fields into datafilled.txt.
+         * Clears default ID and fills First, Middle, Last Name, and Employee ID.
+      5. And saves the employee
+         * Clicks Save button (button[type='submit']).
+      6. Then the employee personal details page should be displayed
+         * Waits for redirect to /pim/viewPersonalDetails.
+         * Asserts .orangehrm-edit-employee-content is visible.
+
+Test 6: test_search_for_an_existing_employee_by_id
+  - Feature: Employee Management (PIM)
+  - Tags: @regression, @employee
+  - Objective: Verifies the employee search filter on the PIM table using a live ID.
+  - Step-by-Step Flow:
+      1. Given the user is logged into the OrangeHRM portal
+         * Authenticates and navigates to the portal.
+      2. When the user navigates to the PIM module
+         * Opens PIM > Employee List.
+      3. And retrieves an existing employee ID from the list
+         * Scrapes the first record's Employee ID from the table
+           (.oxd-table-card .oxd-table-cell:nth-child(2)).
+         * Saves retrieved ID in context.
+      4. And searches for the employee using that ID
+         * Fills search input div.oxd-input-group:has-text('Employee Id') input.
+         * Clicks Search button.
+      5. Then the employee record should be displayed in the results table
+         * Waits for search results to load.
+         * Asserts the results table contains the searched Employee ID.
+
+
+--------------------------------------------------------------------------------
+3. LEAVE MANAGEMENT MODULE (features/leave.feature)
+--------------------------------------------------------------------------------
+
+Test 7: test_view_leave_list_and_apply_search_filter
+  - Feature: Leave Management
+  - Tags: @smoke, @leave
+  - Objective: Verifies querying leave records via the Leave List search filter.
+  - Step-by-Step Flow:
+      1. Given the user is logged into the OrangeHRM portal
+         * Authenticates and loads dashboard.
+      2. When the user navigates to the Leave module
+         * Clicks Leave on sidebar (a[href*='viewLeaveModule']).
+         * Confirms Leave List tab is open.
+      3. And clicks the search button on the leave filter
+         * Clicks button[type='submit']:has-text('Search').
+      4. Then the leave results section should be displayed
+         * Waits for results table or empty records container .orangehrm-paper-container.
+         * Asserts results container is visible.
+
+Test 8: test_reset_leave_search_filter
+  - Feature: Leave Management
+  - Tags: @regression, @leave
+  - Objective: Verifies that the Reset button clears leave filter criteria without error.
+  - Step-by-Step Flow:
+      1. Given the user is logged into the OrangeHRM portal
+         * Authenticates to OrangeHRM.
+      2. When the user navigates to the Leave module
+         * Navigates to Leave List view.
+      3. And clicks the reset button on the leave filter
+         * Clicks button[type='reset']:has-text('Reset').
+      4. Then the leave results section should be displayed
+         * Verifies that the container reloads and remains visible in default state.
+
+
+--------------------------------------------------------------------------------
+4. RECRUITMENT & CANDIDATE MODULE (features/recruitment.feature)
+--------------------------------------------------------------------------------
+
+Test 9: test_view_candidate_list_in_recruitment_module
+  - Feature: Recruitment and Candidate Management
+  - Tags: @smoke, @recruitment
+  - Objective: Verifies access to the Recruitment module and candidates table view.
+  - Step-by-Step Flow:
+      1. Given the user is logged into the OrangeHRM portal
+         * Authenticates as Admin.
+      2. When the user navigates to the Recruitment module
+         * Clicks Recruitment on sidebar (a[href*='viewRecruitmentModule']).
+      3. Then the candidate records list should be visible
+         * Asserts candidate records container .oxd-table and Add button are visible.
+
+Test 10: test_add_a_new_candidate_successfully
+  - Feature: Recruitment and Candidate Management
+  - Tags: @smoke, @recruitment
+  - Objective: Validates candidate application creation with personal info, email,
+               and contact number.
+  - Step-by-Step Flow:
+      1. Given the user is logged into the OrangeHRM portal
+         * Authenticates to the application.
+      2. When the user navigates to the Recruitment module
+         * Opens Recruitment module.
+      3. And clicks on the Add Candidate button
+         * Clicks button:has-text('Add').
+         * Waits for input[name='firstName'].
+      4. And enters candidate details
+         * Generates candidate data:
+             - First Name: "Cand" + random characters (e.g. CandxYms)
+             - Last Name: "Tester" + random characters (e.g. TesterqaT)
+             - Email: Unique formatted address (candidate_xYms_773@testorangehrm.com)
+             - Contact Number: Valid 10-digit number (9876537115)
+         * Fills all fields and logs them into datafilled.txt.
+      5. And saves the candidate
+         * Clicks Save button.
+      6. Then the candidate application details should be displayed
+         * Asserts URL changes to /recruitment/addCandidate/ application view.
+         * Asserts candidate status/details section .orangehrm-card-container is displayed.
+
+
+--------------------------------------------------------------------------------
+5. BUZZ SOCIAL MEDIA FEED MODULE (features/buzz.feature)
+--------------------------------------------------------------------------------
+
+Test 11: test_post_a_status_update_to_buzz_newsfeed
+  - Feature: Buzz Social Media Feed
+  - Tags: @smoke, @buzz
+  - Objective: Validates posting a new status update and confirming its appearance in feed.
+  - Step-by-Step Flow:
+      1. Given the user is logged into the OrangeHRM portal
+         * Authenticates into OrangeHRM.
+      2. When the user navigates to the Buzz module
+         * Clicks Buzz on sidebar (a[href*='viewBuzz']).
+         * Waits for textarea textarea.oxd-buzz-post-input.
+      3. And writes a new status update
+         * Generates a unique timestamped message:
+           "Automation Status Update [TOKEN] at YYYY-MM-DD HH:MM:SS"
+         * Types post text into textarea.
+         * Logs post content into datafilled.txt.
+      4. And clicks the post button
+         * Clicks button[type='submit']:has-text('Post').
+         * Acknowledges system response/toast.
+      5. Then the status update should appear in the Buzz newsfeed
+         * Locates .orangehrm-buzz-post-body-text filtered by unique text.
+         * Asserts post content is visible in newsfeed.
+
+Test 12: test_verify_buzz_feed_loads_existing_posts
+  - Feature: Buzz Social Media Feed
+  - Tags: @regression, @buzz
+  - Objective: Verifies the Buzz newsfeed container loads and renders posts on navigation.
+  - Step-by-Step Flow:
+      1. Given the user is logged into the OrangeHRM portal
+         * Authenticates and navigates to the home screen.
+      2. When the user navigates to the Buzz module
+         * Clicks Buzz module on the menu.
+      3. Then the Buzz newsfeed container should be displayed
+         * Asserts .orangehrm-buzz-newsfeed is visible and loaded.
+
+================================================================================
+END OF SPECIFICATION - File: function.text
+================================================================================

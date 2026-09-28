@@ -4,7 +4,8 @@ from dotenv import load_dotenv
 
 # Automatically locate the .env file in the project root
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(dotenv_path=ENV_PATH, override=False)
+load_dotenv(dotenv_path=ENV_PATH, override=True)
+
 
 
 class ConfigReader:
@@ -51,3 +52,8 @@ class ConfigReader:
             return int(os.getenv("DEFAULT_TIMEOUT", "30000").strip())
         except ValueError:
             return 30000
+
+    @classmethod
+    def get_timeout(cls) -> int:
+        return cls.get_default_timeout()
+

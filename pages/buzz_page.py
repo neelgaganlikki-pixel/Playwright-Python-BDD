@@ -33,13 +33,22 @@ class BuzzPage(BasePage):
 
     def is_post_in_feed(self, content: str, timeout: int = 15000) -> bool:
         self.logger.info(f"Checking if post content '{content}' is present in feed")
+        target_post = self.page.locator(".orangehrm-buzz-post-body-text").filter(has_text=content)
         try:
-            target_post = self.page.locator(f".orangehrm-buzz-post-body-text:has-text('{content}')")
             target_post.first.wait_for(state="visible", timeout=timeout)
             return True
         except PlaywrightTimeoutError:
-            # Fallback: check if content exists anywhere in newsfeed
-            return content in self.newsfeed_container.inner_text()
+            feed_text = self.newsfeed_container.inner_text()
+            if content in feed_text:
+                return True
+            self.logger.info("Post not immediately visible in DOM, refreshing feed")
+            self.page.reload()
+            self.newsfeed_container.wait_for(state="visible", timeout=15000)
+            try:
+                target_post.first.wait_for(state="visible", timeout=5000)
+                return True
+            except PlaywrightTimeoutError:
+                return content in self.newsfeed_container.inner_text()
 
     def get_latest_post_text(self) -> str:
         try:
