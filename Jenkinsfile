@@ -29,7 +29,15 @@ pipeline {
         )
     }
 
+
     environment {
+
+        /*
+         * IMPORTANT:
+         * Jenkins could not find Python through PATH.
+         * Therefore we use the absolute Python executable path.
+         */
+        PYTHON_EXE = 'C:\\Users\\NEELGAGAN B R\\AppData\\Local\\Programs\\Python\\Python314\\python.exe'
 
         BASE_URL = 'https://opensource-demo.orangehrmlive.com/'
 
@@ -46,30 +54,28 @@ pipeline {
         )
     }
 
+
     stages {
-
-        stage('Checkout') {
-
-            steps {
-
-                echo '========================================'
-                echo 'CHECKOUT'
-                echo '========================================'
-
-                checkout scm
-            }
-        }
 
 
         stage('Environment Check') {
 
             steps {
 
-                echo 'Checking environment...'
+                echo '========================================'
+                echo 'ENVIRONMENT CHECK'
+                echo '========================================'
 
                 bat '''
-                    python --version
-                    python -m pip --version
+                    echo Checking Python...
+                    "%PYTHON_EXE%" --version
+
+                    echo.
+                    echo Checking pip...
+                    "%PYTHON_EXE%" -m pip --version
+
+                    echo.
+                    echo Checking Git...
                     git --version
                 '''
             }
@@ -86,13 +92,19 @@ pipeline {
 
                 bat '''
                     if not exist venv (
-                        python -m venv venv
+                        echo Creating Python virtual environment...
+                        "%PYTHON_EXE%" -m venv venv
                     )
 
+                    echo Activating virtual environment...
                     call venv\\Scripts\\activate
 
+                    echo.
+                    echo Upgrading pip...
                     python -m pip install --upgrade pip
 
+                    echo.
+                    echo Installing project dependencies...
                     python -m pip install -r requirements.txt
                 '''
             }
@@ -103,7 +115,9 @@ pipeline {
 
             steps {
 
-                echo 'Installing Playwright browsers...'
+                echo '========================================'
+                echo 'INSTALLING PLAYWRIGHT BROWSERS'
+                echo '========================================'
 
                 bat '''
                     call venv\\Scripts\\activate
@@ -122,22 +136,30 @@ pipeline {
                 echo 'RUNNING PLAYWRIGHT BDD TESTS'
                 echo '========================================'
 
-                echo "Browser: ${params.BROWSER}"
-                echo "Headless: ${params.HEADLESS}"
-                echo "Slow Mo: ${params.SLOW_MO}"
-                echo "Marker: ${params.TEST_MARKER}"
+                echo "Browser    : ${params.BROWSER}"
+                echo "Headless   : ${params.HEADLESS}"
+                echo "Slow Mo    : ${params.SLOW_MO}"
+                echo "Test Marker: ${params.TEST_MARKER}"
 
                 bat '''
                     if not exist reports mkdir reports
+
                     if not exist screenshots mkdir screenshots
 
                     call venv\\Scripts\\activate
 
+                    echo.
+                    echo Starting Pytest...
+                    echo.
+
                     if "%TEST_MARKER%"=="" (
+
                         pytest -v -s ^
                             --html=reports/report.html ^
                             --self-contained-html
+
                     ) else (
+
                         pytest -m "%TEST_MARKER%" -v -s ^
                             --html=reports/report.html ^
                             --self-contained-html
@@ -167,6 +189,7 @@ pipeline {
                 ]
             )
 
+
             archiveArtifacts(
                 artifacts: 'screenshots/*.png, reports/*.log',
                 allowEmptyArchive: true,
@@ -181,7 +204,9 @@ pipeline {
 ========================================
 ORANGEHRM TEST EXECUTION SUCCESSFUL
 ========================================
+
 All selected Playwright BDD tests passed.
+
 ========================================
 '''
         }
@@ -193,8 +218,12 @@ All selected Playwright BDD tests passed.
 ========================================
 ORANGEHRM TEST EXECUTION FAILED
 ========================================
-Check the Console Output,
-HTML report and screenshots.
+
+Check:
+1. Console Output
+2. HTML Test Report
+3. Failure Screenshots
+
 ========================================
 '''
         }
