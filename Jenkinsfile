@@ -19,13 +19,13 @@ pipeline {
         string(
             name: 'SLOW_MO',
             defaultValue: '0',
-            description: 'Slow motion delay in milliseconds (e.g. 0 or 500)'
+            description: 'Slow motion delay in milliseconds'
         )
 
         string(
             name: 'TEST_MARKER',
-            defaultValue: 'smoke or regression',
-            description: 'Pytest marker expression'
+            defaultValue: '',
+            description: 'Pytest marker expression. Leave empty to run all tests.'
         )
     }
 
@@ -65,7 +65,7 @@ pipeline {
 
             steps {
 
-                echo 'Checking Jenkins environment...'
+                echo 'Checking environment...'
 
                 bat '''
                     python --version
@@ -103,7 +103,7 @@ pipeline {
 
             steps {
 
-                echo "Installing Playwright browsers..."
+                echo 'Installing Playwright browsers...'
 
                 bat '''
                     call venv\\Scripts\\activate
@@ -122,10 +122,10 @@ pipeline {
                 echo 'RUNNING PLAYWRIGHT BDD TESTS'
                 echo '========================================'
 
-                echo "Browser    : ${params.BROWSER}"
-                echo "Headless   : ${params.HEADLESS}"
-                echo "Slow Mo    : ${params.SLOW_MO}"
-                echo "Test Marker: ${params.TEST_MARKER}"
+                echo "Browser: ${params.BROWSER}"
+                echo "Headless: ${params.HEADLESS}"
+                echo "Slow Mo: ${params.SLOW_MO}"
+                echo "Marker: ${params.TEST_MARKER}"
 
                 bat '''
                     if not exist reports mkdir reports
@@ -133,11 +133,15 @@ pipeline {
 
                     call venv\\Scripts\\activate
 
-                    pytest -m "%TEST_MARKER%" ^
-                        --html=reports/report.html ^
-                        --self-contained-html ^
-                        --junitxml=reports/junit-results.xml ^
-                        -v -s
+                    if "%TEST_MARKER%"=="" (
+                        pytest -v -s ^
+                            --html=reports/report.html ^
+                            --self-contained-html
+                    ) else (
+                        pytest -m "%TEST_MARKER%" -v -s ^
+                            --html=reports/report.html ^
+                            --self-contained-html
+                    )
                 '''
             }
         }
@@ -149,15 +153,8 @@ pipeline {
         always {
 
             echo '========================================'
-            echo 'PUBLISHING TEST RESULTS'
+            echo 'PUBLISHING TEST REPORTS'
             echo '========================================'
-
-
-            junit(
-                testResults: 'reports/junit-results.xml',
-                allowEmptyResults: true
-            )
-
 
             publishHTML(
                 target: [
@@ -170,7 +167,6 @@ pipeline {
                 ]
             )
 
-
             archiveArtifacts(
                 artifacts: 'screenshots/*.png, reports/*.log',
                 allowEmptyArchive: true,
@@ -182,29 +178,25 @@ pipeline {
         success {
 
             echo '''
-            ========================================
-            ORANGEHRM TEST EXECUTION SUCCESSFUL
-            ========================================
-            All selected Playwright BDD tests passed.
-            ========================================
-            '''
+========================================
+ORANGEHRM TEST EXECUTION SUCCESSFUL
+========================================
+All selected Playwright BDD tests passed.
+========================================
+'''
         }
 
 
         failure {
 
             echo '''
-            ========================================
-            ORANGEHRM TEST EXECUTION FAILED
-            ========================================
-            One or more test scenarios failed.
-
-            Check:
-            1. Console Output
-            2. HTML Test Report
-            3. Failure Screenshots
-            ========================================
-            '''
+========================================
+ORANGEHRM TEST EXECUTION FAILED
+========================================
+Check the Console Output,
+HTML report and screenshots.
+========================================
+'''
         }
 
 
