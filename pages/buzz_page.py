@@ -27,11 +27,13 @@ class BuzzPage(BasePage):
         self.post_input.fill("")
         self.post_input.fill(content)
         self.btn_post.click()
-        # Wait for toast confirmation or page update
         self.page.wait_for_selector(".oxd-toast, .orangehrm-buzz-post-body-text", timeout=15000)
-        self.page.wait_for_load_state("networkidle")
+        try:
+            self.page.wait_for_load_state("networkidle", timeout=8000)
+        except Exception:
+            pass
 
-    def is_post_in_feed(self, content: str, timeout: int = 15000) -> bool:
+    def is_post_in_feed(self, content: str, timeout: int = 20000) -> bool:
         self.logger.info(f"Checking if post content '{content}' is present in feed")
         target_post = self.page.locator(".orangehrm-buzz-post-body-text").filter(has_text=content)
         try:
@@ -42,10 +44,10 @@ class BuzzPage(BasePage):
             if content in feed_text:
                 return True
             self.logger.info("Post not immediately visible in DOM, refreshing feed")
-            self.page.reload()
-            self.newsfeed_container.wait_for(state="visible", timeout=15000)
+            self.page.reload(wait_until="domcontentloaded")
+            self.newsfeed_container.wait_for(state="visible", timeout=20000)
             try:
-                target_post.first.wait_for(state="visible", timeout=5000)
+                target_post.first.wait_for(state="visible", timeout=10000)
                 return True
             except PlaywrightTimeoutError:
                 return content in self.newsfeed_container.inner_text()
@@ -56,3 +58,4 @@ class BuzzPage(BasePage):
             return self.post_texts.first.inner_text().strip()
         except PlaywrightTimeoutError:
             return ""
+

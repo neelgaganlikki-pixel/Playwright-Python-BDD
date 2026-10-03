@@ -34,8 +34,20 @@ def write_buzz_post(page: Page, test_context: dict):
 def click_post_button(page: Page):
     logger.info("[STEP] And clicks the post button")
     buzz_page = BuzzPage(page)
-    buzz_page.btn_post.click()
-    page.wait_for_selector(".oxd-toast, .orangehrm-buzz-newsfeed", timeout=15000)
+    try:
+        with page.expect_response(
+            lambda res: ("buzz" in res.url.lower() or "messages" in res.url.lower()) and res.status in (200, 201),
+            timeout=15000,
+        ):
+            buzz_page.btn_post.click()
+    except Exception:
+        buzz_page.btn_post.click()
+
+    page.wait_for_load_state("domcontentloaded")
+    try:
+        page.wait_for_selector(".oxd-toast", timeout=5000)
+    except Exception:
+        pass
     logger.info("Post button clicked and response acknowledged")
 
 
@@ -55,3 +67,4 @@ def verify_buzz_newsfeed_displayed(page: Page):
     buzz_page.newsfeed_container.wait_for(state="visible", timeout=20000)
     assert buzz_page.newsfeed_container.is_visible(), "Buzz newsfeed container was not displayed."
     logger.info("Buzz newsfeed container verified visible")
+

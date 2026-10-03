@@ -96,7 +96,6 @@ def log_scenario_lifecycle(request: pytest.FixtureRequest) -> Generator[None, No
     logger.info("=" * 80)
 
 
-
 # ============================================================
 # Playwright Engine Fixture
 # ============================================================
@@ -106,7 +105,6 @@ def playwright_instance() -> Generator[Playwright, None, None]:
     """
     Starts Playwright once for the complete test session.
     """
-
     logger.info("Initializing Playwright engine")
 
     with sync_playwright() as playwright:
@@ -127,7 +125,6 @@ def browser(
     """
     Launches the configured browser once for the test session.
     """
-
     browser_name = config.get_browser()
     headless = config.is_headless()
     slow_mo = config.get_slow_mo()
@@ -139,67 +136,44 @@ def browser(
         slow_mo,
     )
 
-    # --------------------------------------------------------
-    # Browser launch arguments
-    # --------------------------------------------------------
-
     launch_args: list[str] = []
 
-    # Start Chromium maximized when running in headed mode.
+    # Start Chromium maximized when running in headed mode
     if browser_name.lower() == "chromium" and not headless:
         launch_args.append("--start-maximized")
 
-    # --------------------------------------------------------
-    # Launch selected browser
-    # --------------------------------------------------------
-
     if browser_name.lower() == "chromium":
-
-        browser = playwright_instance.chromium.launch(
+        browser_inst = playwright_instance.chromium.launch(
             headless=headless,
             slow_mo=slow_mo,
             args=launch_args,
         )
-
     elif browser_name.lower() == "firefox":
-
-        browser = playwright_instance.firefox.launch(
+        browser_inst = playwright_instance.firefox.launch(
             headless=headless,
             slow_mo=slow_mo,
             args=launch_args,
         )
-
     elif browser_name.lower() == "webkit":
-
-        browser = playwright_instance.webkit.launch(
+        browser_inst = playwright_instance.webkit.launch(
             headless=headless,
             slow_mo=slow_mo,
             args=launch_args,
         )
-
     else:
         raise ValueError(
             f"Unsupported browser: {browser_name}. "
             "Supported browsers: chromium, firefox, webkit"
         )
 
-    # --------------------------------------------------------
-    # Provide browser to tests
-    # --------------------------------------------------------
-
-    yield browser
-
-    # --------------------------------------------------------
-    # Cleanup
-    # --------------------------------------------------------
+    yield browser_inst
 
     logger.info("Closing browser session")
-
-    browser.close()
+    browser_inst.close()
 
 
 # ============================================================
-# Browser Context Fixture
+# Browser Context Fixture (with Video Management)
 # ============================================================
 
 @pytest.fixture
@@ -207,31 +181,30 @@ def context(
     browser: Browser,
 ) -> Generator[BrowserContext, None, None]:
     """
-    Creates a fresh BrowserContext for every test.
-
-    no_viewport=True allows the page to use the actual browser
-    window size instead of forcing 1280x720.
+    Creates a fresh BrowserContext for every test with automated video recording.
     """
-
     headless = ConfigReader.is_headless()
+    video_dir = Path("videos")
+    video_dir.mkdir(parents=True, exist_ok=True)
 
     if headless:
-        context = browser.new_context(
+        ctx = browser.new_context(
             viewport={"width": 1920, "height": 1080},
             ignore_https_errors=True,
+            record_video_dir=str(video_dir),
+            record_video_size={"width": 1920, "height": 1080},
         )
     else:
-        context = browser.new_context(
+        ctx = browser.new_context(
             no_viewport=True,
             ignore_https_errors=True,
+            record_video_dir=str(video_dir),
         )
 
-    yield context
+    yield ctx
 
     logger.info("Closing BrowserContext")
-
-    context.close()
-
+    ctx.close()
 
 
 # ============================================================
@@ -242,60 +215,70 @@ _active_page: Page | None = None
 
 
 # ============================================================
-# Page Fixture
+# Page Fixture (with Video Lifecycle Management)
 # ============================================================
 
 @pytest.fixture
 def page(
     context: BrowserContext,
+    request: pytest.FixtureRequest,
 ) -> Generator[Page, None, None]:
     """
-    Creates a fresh Playwright Page for every test.
+    Creates a fresh Playwright Page for every test with retain-on-failure video policy.
+    - PASSED test: video artifact is discarded immediately.
+    - FAILED test: video artifact is preserved with readable name 'FAILED_<test_name>_<timestamp>.webm'.
     """
-
     global _active_page
 
-    # --------------------------------------------------------
-    # Create page
-    # --------------------------------------------------------
+    pg = context.new_page()
+    pg.set_default_timeout(DEFAULT_TIMEOUT)
+    pg.set_default_navigation_timeout(DEFAULT_TIMEOUT)
+    _active_page = pg
 
-    page = context.new_page()
+    logger.info("Initialized new page with timeout %sms", DEFAULT_TIMEOUT)
 
-    # --------------------------------------------------------
-    # Configure Playwright timeouts
-    # --------------------------------------------------------
-
-    page.set_default_timeout(DEFAULT_TIMEOUT)
-
-    page.set_default_navigation_timeout(
-        DEFAULT_TIMEOUT
-    )
-
-    # --------------------------------------------------------
-    # Track active page
-    # --------------------------------------------------------
-
-    _active_page = page
-
-    logger.info(
-        "Initialized new page with timeout %sms",
-        DEFAULT_TIMEOUT,
-    )
-
-    # --------------------------------------------------------
-    # Provide page to test
-    # --------------------------------------------------------
-
-    yield page
-
-    # --------------------------------------------------------
-    # Cleanup
-    # --------------------------------------------------------
+    yield pg
 
     _active_page = None
 
-    if not page.is_closed():
-        page.close()
+    # Capture video file reference before closing the page
+    video = pg.video
+    video_path_str = None
+    if video:
+        try:
+            video_path_str = video.path()
+        except Exception:
+            pass
+
+    if not pg.is_closed():
+        pg.close()
+
+    # Determine test outcome: check if test call phase failed
+    report_call = getattr(request.node, "rep_call", None)
+    failed = report_call.failed if report_call else False
+
+    if video_path_str and Path(video_path_str).exists():
+        if failed:
+            safe_name = (
+                request.node.name
+                .replace(" ", "_")
+                .replace("::", "_")
+                .replace("/", "_")
+                .replace("\\", "_")
+            )
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            failed_video = Path("videos") / f"FAILED_{safe_name}_{timestamp}.webm"
+            try:
+                Path(video_path_str).rename(failed_video)
+                logger.warning("Test failed. Preserved video artifact: %s", failed_video)
+            except Exception as e:
+                logger.warning("Could not rename failed test video: %s", e)
+        else:
+            # Passed test: do not retain video artifact
+            try:
+                Path(video_path_str).unlink(missing_ok=True)
+            except Exception as e:
+                logger.debug("Could not remove passed test video: %s", e)
 
 
 # ============================================================
@@ -310,65 +293,36 @@ def pytest_runtest_makereport(
     """
     Captures a full-page screenshot when a test fails
     and attaches it to the pytest HTML report.
+    Also stores test report on item for fixture teardown inspections.
     """
-
     outcome = yield
-
     report = outcome.get_result()
 
-    # --------------------------------------------------------
-    # Only capture screenshots for test execution failures
-    # --------------------------------------------------------
+    # Store report on node for fixture post-execution inspection (e.g. video retention)
+    setattr(item, f"rep_{report.when}", report)
 
-    if report.when != "call":
-        return
-
-    if not report.failed:
+    # Only capture screenshots for test execution failures during the call phase
+    if report.when != "call" or not report.failed:
         return
 
     global _active_page
 
-    # --------------------------------------------------------
-    # Check if a page is available
-    # --------------------------------------------------------
-
     if _active_page is None:
-
         logger.warning(
-            "Test failed but no active Playwright page "
-            "was available for screenshot capture."
+            "Test failed but no active Playwright page was available for screenshot capture."
         )
-
         return
 
     if _active_page.is_closed():
-
         logger.warning(
-            "Test failed but the Playwright page "
-            "is already closed."
+            "Test failed but the Playwright page is already closed."
         )
-
         return
 
-    # --------------------------------------------------------
-    # Screenshot directory
-    # --------------------------------------------------------
-
     screenshot_dir = Path("screenshots")
+    screenshot_dir.mkdir(parents=True, exist_ok=True)
 
-    screenshot_dir.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    # --------------------------------------------------------
-    # Generate screenshot filename
-    # --------------------------------------------------------
-
-    timestamp = datetime.now().strftime(
-        "%Y%m%d_%H%M%S"
-    )
-
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     safe_test_name = (
         item.nodeid
         .replace("::", "_")
@@ -377,43 +331,22 @@ def pytest_runtest_makereport(
         .replace(":", "_")
         .replace(" ", "_")
     )
-
-    screenshot_path = (
-        screenshot_dir
-        / f"{safe_test_name}_{timestamp}.png"
-    )
-
-    # --------------------------------------------------------
-    # Capture screenshot
-    # --------------------------------------------------------
+    screenshot_path = screenshot_dir / f"{safe_test_name}_{timestamp}.png"
 
     try:
-
         _active_page.screenshot(
             path=str(screenshot_path),
             full_page=True,
         )
-
         logger.error(
             "Test failed. Screenshot saved: %s",
             screenshot_path,
         )
 
-        # ----------------------------------------------------
-        # Attach screenshot to pytest-html
-        # ----------------------------------------------------
-
+        # Attach screenshot to pytest-html report
         if hasattr(report, "extras"):
-
-            with open(
-                screenshot_path,
-                "rb",
-            ) as image_file:
-
-                encoded_image = base64.b64encode(
-                    image_file.read()
-                ).decode("utf-8")
-
+            with open(screenshot_path, "rb") as image_file:
+                encoded_image = base64.b64encode(image_file.read()).decode("utf-8")
             report.extras.append(
                 pytest_html.extras.image(
                     encoded_image,
@@ -422,7 +355,6 @@ def pytest_runtest_makereport(
             )
 
     except Exception as screenshot_error:
-
         logger.error(
             "Failed to capture screenshot: %s",
             screenshot_error,
@@ -439,31 +371,18 @@ def pytest_html_report_title(
     """
     Sets the title of the generated HTML report.
     """
-
-    report.title = (
-        "OrangeHRM Playwright BDD "
-        "Automation Test Report"
-    )
+    report.title = "OrangeHRM Playwright BDD Automation Test Report"
 
 
 # ============================================================
-# Pytest Configuration
+# Pytest Configuration & Pre-Run Setup
 # ============================================================
 
 def pytest_configure(
     config: pytest.Config,
 ) -> None:
     """
-    Creates required project directories before
-    the test execution starts.
+    Creates required project artifact directories before test execution starts.
     """
-
-    Path("reports").mkdir(
-        parents=True,
-        exist_ok=True,
-    )
-
-    Path("screenshots").mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    for dir_name in ("reports", "screenshots", "videos", "test-results"):
+        Path(dir_name).mkdir(parents=True, exist_ok=True)

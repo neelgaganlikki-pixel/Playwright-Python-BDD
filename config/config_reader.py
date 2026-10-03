@@ -7,7 +7,6 @@ ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=ENV_PATH, override=True)
 
 
-
 class ConfigReader:
     """
     Centralized configuration manager reading from environment variables
@@ -57,3 +56,22 @@ class ConfigReader:
     def get_timeout(cls) -> int:
         return cls.get_default_timeout()
 
+    # -------------------------------------------------------------------------
+    # Jenkins CI/CD Configuration
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def get_jenkins_url(cls) -> str:
+        return os.getenv("JENKINS_URL", "http://localhost:8080").strip().rstrip("/")
+
+    @classmethod
+    def get_jenkins_user(cls) -> str:
+        return os.getenv("JENKINS_USER", "").strip()
+
+    @classmethod
+    def get_jenkins_api_token(cls) -> str:
+        return os.getenv("JENKINS_API_TOKEN", "").strip()
+
+    @classmethod
+    def get_jenkins_job_name(cls) -> str:
+        return os.getenv("JENKINS_JOB_NAME", "OrangeHRM-Playwright-BDD").strip()

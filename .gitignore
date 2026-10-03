@@ -11,15 +11,26 @@ venv/
 .venv/
 ENV/
 
-# Environment configurations containing credentials
+# Environment configurations & secrets
 .env
+.env.*
+!.env.example
+.jenkins-config
 
 # Pytest & Test Execution Artifacts
 .pytest_cache/
 reports/
 screenshots/
 test-results/
+playwright-report/
+logs/
 *.log
+*.png
+*.webm
+
+# Generated runtime logs and recorded data files
+log.txt
+datafilled.txt
 
 # Playwright artifacts
 videos/
