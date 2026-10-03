@@ -17,6 +17,7 @@ class RecruitmentPage(BasePage):
 
         # Candidate List Elements
         self.btn_add_candidate = page.locator("button:has-text('Add')")
+        self.btn_add = self.btn_add_candidate
         self.table_cards = page.locator(".oxd-table-body .oxd-table-card")
         self.candidates_count_label = page.locator(".orangehrm-horizontal-padding span")
 
