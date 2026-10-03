@@ -179,13 +179,19 @@ def browser(
 @pytest.fixture
 def context(
     browser: Browser,
+    request: pytest.FixtureRequest,
 ) -> Generator[BrowserContext, None, None]:
     """
     Creates a fresh BrowserContext for every test with automated video recording.
+    Video artifacts are safely finalized after context closure to avoid Windows file locks.
+    - PASSED test: video artifact is discarded immediately.
+    - FAILED test: video artifact is preserved with readable name 'FAILED_<test_name>_<timestamp>.webm'.
     """
     headless = ConfigReader.is_headless()
     video_dir = Path("videos")
     video_dir.mkdir(parents=True, exist_ok=True)
+
+    existing_videos = set(video_dir.glob("*.webm"))
 
     if headless:
         ctx = browser.new_context(
@@ -204,7 +210,37 @@ def context(
     yield ctx
 
     logger.info("Closing BrowserContext")
-    ctx.close()
+    try:
+        ctx.close()
+    except Exception as e:
+        logger.warning("Error closing context: %s", e)
+
+    # Context is closed; video file write locks are now fully released by Chromium on Windows
+    report_call = getattr(request.node, "rep_call", None)
+    failed = report_call.failed if report_call else False
+
+    new_videos = set(video_dir.glob("*.webm")) - existing_videos
+    for v_path in new_videos:
+        if failed:
+            safe_name = (
+                request.node.name
+                .replace(" ", "_")
+                .replace("::", "_")
+                .replace("/", "_")
+                .replace("\\", "_")
+            )
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            failed_video = video_dir / f"FAILED_{safe_name}_{timestamp}.webm"
+            try:
+                v_path.rename(failed_video)
+                logger.warning("Test failed. Preserved video artifact: %s", failed_video)
+            except Exception as e:
+                logger.warning("Could not rename failed test video: %s", e)
+        else:
+            try:
+                v_path.unlink(missing_ok=True)
+            except Exception as e:
+                logger.debug("Could not remove passed test video: %s", e)
 
 
 # ============================================================
@@ -215,18 +251,15 @@ _active_page: Page | None = None
 
 
 # ============================================================
-# Page Fixture (with Video Lifecycle Management)
+# Page Fixture
 # ============================================================
 
 @pytest.fixture
 def page(
     context: BrowserContext,
-    request: pytest.FixtureRequest,
 ) -> Generator[Page, None, None]:
     """
-    Creates a fresh Playwright Page for every test with retain-on-failure video policy.
-    - PASSED test: video artifact is discarded immediately.
-    - FAILED test: video artifact is preserved with readable name 'FAILED_<test_name>_<timestamp>.webm'.
+    Creates a fresh Playwright Page for every test.
     """
     global _active_page
 
@@ -241,44 +274,11 @@ def page(
 
     _active_page = None
 
-    # Capture video file reference before closing the page
-    video = pg.video
-    video_path_str = None
-    if video:
+    if not pg.is_closed():
         try:
-            video_path_str = video.path()
+            pg.close()
         except Exception:
             pass
-
-    if not pg.is_closed():
-        pg.close()
-
-    # Determine test outcome: check if test call phase failed
-    report_call = getattr(request.node, "rep_call", None)
-    failed = report_call.failed if report_call else False
-
-    if video_path_str and Path(video_path_str).exists():
-        if failed:
-            safe_name = (
-                request.node.name
-                .replace(" ", "_")
-                .replace("::", "_")
-                .replace("/", "_")
-                .replace("\\", "_")
-            )
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            failed_video = Path("videos") / f"FAILED_{safe_name}_{timestamp}.webm"
-            try:
-                Path(video_path_str).rename(failed_video)
-                logger.warning("Test failed. Preserved video artifact: %s", failed_video)
-            except Exception as e:
-                logger.warning("Could not rename failed test video: %s", e)
-        else:
-            # Passed test: do not retain video artifact
-            try:
-                Path(video_path_str).unlink(missing_ok=True)
-            except Exception as e:
-                logger.debug("Could not remove passed test video: %s", e)
 
 
 # ============================================================
@@ -386,3 +386,21 @@ def pytest_configure(
     """
     for dir_name in ("reports", "screenshots", "videos", "test-results"):
         Path(dir_name).mkdir(parents=True, exist_ok=True)
+
+
+# ============================================================
+# Pytest Session Finish - Self-Healing Summary Report
+# ============================================================
+
+def pytest_sessionfinish(
+    session: pytest.Session,
+    exitstatus: int,
+) -> None:
+    """
+    Outputs the Self-Healing Summary report to console and logs upon session completion.
+    """
+    try:
+        from utils.self_healing import self_healing_engine
+        self_healing_engine.print_summary()
+    except Exception as e:
+        logger.warning("Could not generate self-healing session summary: %s", e)

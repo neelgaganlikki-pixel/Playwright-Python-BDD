@@ -1,10 +1,10 @@
-from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import Page
 from pages.base_page import BasePage
 
 
 class LeavePage(BasePage):
     """
-    Page Object representing the OrangeHRM Leave module.
+    Page Object representing the OrangeHRM Leave module with self-healing.
     """
 
     def __init__(self, page: Page):
@@ -26,34 +26,76 @@ class LeavePage(BasePage):
 
     def go_to_leave_list(self) -> None:
         self.logger.info("Opening Leave List tab")
-        self.tab_leave_list.click()
-        self.results_container.wait_for(state="visible", timeout=20000)
+        self.heal_click(
+            element_name="Leave List Tab",
+            primary="a:has-text('Leave List')",
+            fallbacks=[
+                "//a[contains(text(), 'Leave List')]",
+                "li:has-text('Leave List') a",
+                ".oxd-topbar-body-nav-tab:has-text('Leave List')",
+            ],
+            timeout=15000,
+        )
+        self.heal_wait_for(
+            element_name="Leave Results Container",
+            primary=".orangehrm-paper-container",
+            fallbacks=[".oxd-table", ".oxd-table-filter", ".orangehrm-container"],
+            timeout=20000,
+        )
 
     def click_search(self) -> None:
         self.logger.info("Clicking Search on Leave List")
-        self.btn_search.click()
+        self.heal_click(
+            element_name="Leave Search Button",
+            primary="button[type='submit']:has-text('Search')",
+            fallbacks=[
+                "button[type='submit']",
+                "button.orangehrm-left-space",
+                "//button[contains(., 'Search')]",
+            ],
+        )
         self.page.wait_for_load_state("networkidle")
 
     def click_reset(self) -> None:
         self.logger.info("Clicking Reset on Leave List")
-        self.btn_reset.click()
+        self.heal_click(
+            element_name="Leave Reset Button",
+            primary="button[type='reset']:has-text('Reset')",
+            fallbacks=[
+                "button[type='reset']",
+                "button.oxd-button--ghost",
+                "//button[contains(., 'Reset')]",
+            ],
+        )
         self.page.wait_for_load_state("networkidle")
 
     def is_leave_list_displayed(self, timeout: int = 15000) -> bool:
-        try:
-            self.results_container.wait_for(state="visible", timeout=timeout)
+        visible = self.heal_is_visible(
+            element_name="Leave Results Container",
+            primary=".orangehrm-paper-container",
+            fallbacks=[".oxd-table", ".oxd-table-filter", ".orangehrm-container"],
+            timeout=timeout,
+        )
+        if visible:
             return True
-        except PlaywrightTimeoutError:
-            return "viewLeaveList" in self.page.url
+        return "viewLeaveList" in self.page.url
 
     def get_records_text(self) -> str:
         try:
-            self.records_span.wait_for(state="visible", timeout=10000)
-            text = self.records_span.inner_text().strip()
+            text = self.heal_get_text(
+                element_name="Leave Records Count Label",
+                primary=".orangehrm-paper-container .orangehrm-horizontal-padding span",
+                fallbacks=[
+                    ".orangehrm-horizontal-padding span",
+                    ".orangehrm-paper-container span",
+                    "span.oxd-text--span:has-text('Record')",
+                ],
+                timeout=10000,
+            )
             self.logger.info(f"Leave records status: {text}")
             return text
-        except PlaywrightTimeoutError:
-            # Fall back to checking entire paper container text
+        except Exception:
             if self.results_container.is_visible():
                 return self.results_container.inner_text()
             return ""
+

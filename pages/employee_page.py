@@ -1,10 +1,11 @@
+import re
 from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
 from pages.base_page import BasePage
 
 
 class EmployeePage(BasePage):
     """
-    Page Object representing the OrangeHRM PIM / Employee Management module.
+    Page Object representing the OrangeHRM PIM / Employee Management module with self-healing.
     """
 
     def __init__(self, page: Page):
@@ -36,33 +37,77 @@ class EmployeePage(BasePage):
 
     def go_to_add_employee(self) -> None:
         self.logger.info("Opening Add Employee tab")
-        add_btn = self.page.locator("a:has-text('Add Employee'), button:has-text('Add')").first
-        add_btn.wait_for(state="visible", timeout=20000)
-        add_btn.click()
-        self.input_first_name.wait_for(state="visible", timeout=20000)
+        self.heal_click(
+            element_name="Add Employee Button",
+            primary="a:has-text('Add Employee')",
+            fallbacks=[
+                "button:has-text('Add')",
+                "//a[contains(text(), 'Add Employee')]",
+                "//button[contains(., 'Add')]",
+                ".orangehrm-header-container button",
+            ],
+            timeout=20000,
+        )
+        self.heal_wait_for(
+            element_name="Employee First Name Input",
+            primary="input[name='firstName']",
+            fallbacks=["input[placeholder='First Name']", ".orangehrm-firstname input"],
+            timeout=20000,
+        )
 
     def set_employee_id(self, emp_id: str) -> None:
-        """
-        Clears the auto-suggested demo employee ID (which often collides with existing IDs)
-        and populates the unique custom employee ID.
-        """
         self.logger.info(f"Setting unique Employee ID: '{emp_id}'")
-        self.input_emp_id.click()
-        self.input_emp_id.press("Control+a")
-        self.input_emp_id.press("Backspace")
-        self.input_emp_id.fill(emp_id)
+        self.heal_fill(
+            element_name="Employee ID Field",
+            primary="div.oxd-input-group:has-text('Employee Id') input",
+            text=emp_id,
+            fallbacks=[
+                ".oxd-input-group:has(label:has-text('Employee Id')) input",
+                "//label[contains(text(), 'Employee Id')]/ancestor::div[contains(@class, 'oxd-input-group')]//input",
+            ],
+            timeout=10000,
+        )
 
     def go_to_employee_list(self) -> None:
         self.logger.info("Opening Employee List tab")
-        self.tab_employee_list.click()
-        self.table_body.wait_for(state="attached", timeout=20000)
+        self.heal_click(
+            element_name="Employee List Tab",
+            primary="a:has-text('Employee List')",
+            fallbacks=[
+                "//a[contains(text(), 'Employee List')]",
+                "li:has-text('Employee List') a",
+            ],
+            timeout=15000,
+        )
+        self.heal_wait_for(
+            element_name="Employee Records Table Body",
+            primary=".oxd-table-body",
+            state="attached",
+            fallbacks=[".oxd-table", ".orangehrm-container"],
+            timeout=20000,
+        )
 
     def add_employee(self, first_name: str, last_name: str, middle_name: str = "", emp_id: str = None) -> str:
         self.logger.info(f"Adding employee: {first_name} {last_name}")
-        self.input_first_name.fill(first_name)
+        self.heal_fill(
+            element_name="First Name Input",
+            primary="input[name='firstName']",
+            text=first_name,
+            fallbacks=["input[placeholder='First Name']", ".orangehrm-firstname input"],
+        )
         if middle_name:
-            self.input_middle_name.fill(middle_name)
-        self.input_last_name.fill(last_name)
+            self.heal_fill(
+                element_name="Middle Name Input",
+                primary="input[name='middleName']",
+                text=middle_name,
+                fallbacks=["input[placeholder='Middle Name']", ".orangehrm-middlename input"],
+            )
+        self.heal_fill(
+            element_name="Last Name Input",
+            primary="input[name='lastName']",
+            text=last_name,
+            fallbacks=["input[placeholder='Last Name']", ".orangehrm-lastname input"],
+        )
 
         if emp_id:
             self.set_employee_id(emp_id)
@@ -70,17 +115,33 @@ class EmployeePage(BasePage):
         else:
             used_id = self.input_emp_id.input_value()
 
-        self.btn_save.click()
+        self.heal_click(
+            element_name="Save Employee Button",
+            primary="button[type='submit']:has-text('Save')",
+            fallbacks=[
+                "button[type='submit']",
+                "button.oxd-button--secondary",
+                "//button[contains(., 'Save')]",
+            ],
+        )
         self.page.wait_for_selector(".oxd-toast, h6:has-text('Personal Details')", timeout=20000)
         self.logger.info(f"Employee saved with ID: {used_id}")
         return used_id
 
     def is_personal_details_displayed(self, timeout: int = 15000) -> bool:
-        try:
-            self.personal_details_header.wait_for(state="visible", timeout=timeout)
+        header_visible = self.heal_is_visible(
+            element_name="Personal Details Header",
+            primary="h6:has-text('Personal Details')",
+            fallbacks=[
+                ".orangehrm-edit-employee-content",
+                "h6.orangehrm-main-title",
+                "a:has-text('Personal Details')",
+            ],
+            timeout=timeout,
+        )
+        if header_visible:
             return True
-        except PlaywrightTimeoutError:
-            return "viewPersonalDetails" in self.page.url
+        return "viewPersonalDetails" in self.page.url
 
     def get_first_employee_id_from_list(self, timeout: int = 20000) -> str:
         self.table_cards.first.wait_for(state="visible", timeout=timeout)
@@ -89,9 +150,7 @@ class EmployeePage(BasePage):
         if cells.count() > 1:
             emp_id = cells.nth(1).inner_text().strip()
         else:
-            # Fallback for card / mobile layout: text like "Id 0399\nFirst Name..."
             card_text = first_card.inner_text()
-            import re
             match = re.search(r"Id\s*(\w+)", card_text, re.IGNORECASE)
             emp_id = match.group(1).strip() if match else card_text.split()[0].strip()
         self.logger.info(f"Retrieved first employee ID: '{emp_id}'")
@@ -99,15 +158,30 @@ class EmployeePage(BasePage):
 
     def search_by_employee_id(self, emp_id: str) -> None:
         self.logger.info(f"Searching employee by ID: '{emp_id}'")
-        # Ensure filter section is expanded if collapsed
         if not self.filter_emp_id.is_visible():
             filter_header = self.page.locator(".oxd-table-filter-header")
             if filter_header.is_visible():
                 filter_header.click()
-        self.filter_emp_id.wait_for(state="visible", timeout=15000)
-        self.filter_emp_id.fill("")
-        self.filter_emp_id.fill(emp_id)
-        self.btn_search.click()
+
+        self.heal_fill(
+            element_name="Employee Search Filter Input",
+            primary="div.oxd-input-group:has-text('Employee Id') input",
+            text=emp_id,
+            fallbacks=[
+                ".oxd-table-filter input",
+                "//label[contains(text(), 'Employee Id')]/ancestor::div[contains(@class, 'oxd-input-group')]//input",
+            ],
+            timeout=15000,
+        )
+        self.heal_click(
+            element_name="Search Filter Submit Button",
+            primary="button[type='submit']:has-text('Search')",
+            fallbacks=[
+                "button[type='submit']",
+                "button.orangehrm-left-space",
+                "//button[contains(., 'Search')]",
+            ],
+        )
         self.page.wait_for_load_state("networkidle")
 
     def get_search_results_count(self) -> int:
@@ -126,3 +200,4 @@ class EmployeePage(BasePage):
             if emp_id in card_text:
                 return True
         return False
+

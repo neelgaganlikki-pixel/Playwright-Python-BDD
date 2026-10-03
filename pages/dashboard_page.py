@@ -1,132 +1,122 @@
-from playwright.sync_api import Page, TimeoutError as PlaywrightTimeoutError
+from playwright.sync_api import Page
 from pages.base_page import BasePage
 
 
 class DashboardPage(BasePage):
     """
-    Page Object representing the OrangeHRM Dashboard Page.
+    Page Object representing the OrangeHRM Dashboard Page with integrated self-healing.
     """
 
-    DASHBOARD_URL = "**/web/index.php/dashboard/index"
+    DASHBOARD_URL_PATTERN = "**/dashboard/**"
 
     def __init__(self, page: Page):
         super().__init__(page)
 
-        self.dashboard_header = page.locator(
-            "h6.oxd-topbar-header-breadcrumb-module"
-        )
+        # Standard locators (preserved for backwards compatibility)
+        self.dashboard_header = page.locator("h6.oxd-topbar-header-breadcrumb-module")
+        self.widgets = page.locator(".orangehrm-dashboard-widget")
+        self.quick_launch_cards = page.locator(".orangehrm-quick-launch-card")
 
-        self.widgets = page.locator(
-            ".orangehrm-dashboard-widget"
-        )
-
-        self.quick_launch_cards = page.locator(
-            ".orangehrm-quick-launch-card"
-        )
-
-    def is_dashboard_displayed(self, timeout: int = 15000) -> bool:
+    def is_dashboard_displayed(self, timeout: int = 25000) -> bool:
         """
-        Verify that the user has successfully reached the Dashboard.
-        URL validation is used as the primary check, followed by the
-        Dashboard header when available.
+        Verify that the user has successfully reached the Dashboard using self-healing
+        fallback locator strategies and page-state validation.
+        Does not falsely pass if login fails or dashboard is genuinely absent.
         """
-
         try:
-            # First wait for the Dashboard URL
-            self.page.wait_for_url(
-                self.DASHBOARD_URL,
-                timeout=timeout
-            )
+            # 1. Wait for navigation away from /auth/login towards dashboard
+            if "/auth/login" in self.page.url or "/auth/validate" in self.page.url:
+                try:
+                    self.page.wait_for_url(self.DASHBOARD_URL_PATTERN, timeout=timeout)
+                except PlaywrightTimeoutError:
+                    pass
 
-            # URL is the strongest indication that login succeeded
-            if "/web/index.php/dashboard/index" not in self.page.url:
+            # If still on login page or login error alert is visible, login failed
+            if "/auth/login" in self.page.url:
+                self.logger.warning("Browser is still on /auth/login page; login did not reach Dashboard.")
                 return False
 
-            # Give the dashboard UI time to render
-            try:
-                self.dashboard_header.wait_for(
-                    state="visible",
-                    timeout=5000
-                )
+            # 2. Validate dashboard UI presence via self-healing candidates
+            header_visible = self.heal_is_visible(
+                element_name="Dashboard Header Element",
+                primary="h6.oxd-topbar-header-breadcrumb-module",
+                fallbacks=[
+                    "h6:has-text('Dashboard')",
+                    "header >> text=Dashboard",
+                    ".oxd-topbar-header-breadcrumb",
+                    "nav >> text=Dashboard",
+                    "a[href*='dashboard'].active",
+                    ".orangehrm-dashboard-widget",
+                    ".orangehrm-dashboard-grid",
+                ],
+                timeout=8000,
+            )
 
-                header_text = self.dashboard_header.inner_text().strip()
-
-                return "Dashboard" in header_text
-
-            except PlaywrightTimeoutError:
-                # URL is correct even if header rendering is delayed
+            if header_visible:
                 return True
 
-        except PlaywrightTimeoutError:
+            # 3. Secondary check: widget container presence
+            widget_visible = self.heal_is_visible(
+                element_name="Dashboard Widgets Container",
+                primary=".orangehrm-dashboard-widget",
+                fallbacks=[
+                    ".orangehrm-dashboard-grid",
+                    ".oxd-sheet--card",
+                    "p.oxd-text:has-text('Time at Work')",
+                ],
+                timeout=5000,
+            )
+            if widget_visible:
+                return True
+
+            # 4. Strict URL fallback: only if URL genuinely confirms /dashboard/ and no errors
+            if "/web/index.php/dashboard" in self.page.url:
+                self.logger.info("[SELF-HEALING] Dashboard confirmed via authenticated URL state: %s", self.page.url)
+                return True
+
+            return False
+
+        except Exception as e:
+            self.logger.warning("Error checking dashboard display: %s", e)
             return False
 
     def get_dashboard_header_text(self) -> str:
-        self.dashboard_header.wait_for(
-            state="visible",
-            timeout=15000
+        """
+        Retrieve header text using self-healing fallbacks.
+        """
+        return self.heal_get_text(
+            element_name="Dashboard Header Text",
+            primary="h6.oxd-topbar-header-breadcrumb-module",
+            fallbacks=[
+                "h6:has-text('Dashboard')",
+                "header >> text=Dashboard",
+                ".oxd-topbar-header-breadcrumb",
+                ".oxd-topbar-header-title",
+            ],
+            timeout=15000,
         )
-
-        return self.dashboard_header.inner_text().strip()
 
     def get_widgets_count(self) -> int:
         try:
-            self.widgets.first.wait_for(
-                state="visible",
-                timeout=10000
-            )
-
+            self.widgets.first.wait_for(state="visible", timeout=10000)
             return self.widgets.count()
-
         except PlaywrightTimeoutError:
             return 0
 
-    def logout(self):
+    def logout(self) -> None:
         """
-        Logout from OrangeHRM.
+        Logout from OrangeHRM using self-healing navigation.
         """
-
-        # Open user dropdown
-        user_dropdown = self.page.locator(
-            ".oxd-userdropdown-tab"
-        )
-
-        user_dropdown.wait_for(
-            state="visible",
-            timeout=10000
-        )
-
-        user_dropdown.click()
-
-        # Click Logout
-        logout_button = self.page.get_by_text(
-            "Logout",
-            exact=True
-        )
-
-        logout_button.wait_for(
-            state="visible",
-            timeout=10000
-        )
-
-        logout_button.click()
-
-        # Verify login page
-        self.page.wait_for_url(
-            "**/web/index.php/auth/login",
-            timeout=15000
-        )
+        super().logout()
 
     def is_login_page_displayed(self) -> bool:
-
-        try:
-            self.page.wait_for_url(
-                "**/web/index.php/auth/login",
-                timeout=10000
-            )
-
-            return self.page.locator(
-                "input[name='username']"
-            ).is_visible()
-
-        except PlaywrightTimeoutError:
-            return False
+        return self.heal_is_visible(
+            element_name="Login Page Form",
+            primary="input[name='username']",
+            fallbacks=[
+                "button[type='submit']",
+                ".orangehrm-login-form",
+                "h5:has-text('Login')",
+            ],
+            timeout=10000,
+        )

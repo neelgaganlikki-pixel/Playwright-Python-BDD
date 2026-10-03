@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 
 # Automatically locate the .env file in the project root
 ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
-load_dotenv(dotenv_path=ENV_PATH, override=True)
+load_dotenv(dotenv_path=ENV_PATH, override=False)
 
 
 class ConfigReader:
@@ -75,3 +75,29 @@ class ConfigReader:
     @classmethod
     def get_jenkins_job_name(cls) -> str:
         return os.getenv("JENKINS_JOB_NAME", "OrangeHRM-Playwright-BDD").strip()
+
+    # -------------------------------------------------------------------------
+    # Self-Healing Automation Configuration
+    # -------------------------------------------------------------------------
+
+    @classmethod
+    def is_self_healing_enabled(cls) -> bool:
+        return os.getenv("SELF_HEALING_ENABLED", "true").strip().lower() in ("true", "1", "yes")
+
+    @classmethod
+    def get_self_healing_max_attempts(cls) -> int:
+        try:
+            return int(os.getenv("SELF_HEALING_MAX_ATTEMPTS", "3").strip())
+        except ValueError:
+            return 3
+
+    @classmethod
+    def should_save_healed_locators(cls) -> bool:
+        return os.getenv("SELF_HEALING_SAVE_LOCATORS", "true").strip().lower() in ("true", "1", "yes")
+
+    @classmethod
+    def get_self_healing_fallback_timeout(cls) -> int:
+        try:
+            return int(os.getenv("SELF_HEALING_FALLBACK_TIMEOUT", "4000").strip())
+        except ValueError:
+            return 4000
