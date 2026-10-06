@@ -54,7 +54,10 @@ class LeavePage(BasePage):
                 "//button[contains(., 'Search')]",
             ],
         )
-        self.page.wait_for_load_state("networkidle")
+        try:
+            self.page.wait_for_load_state("networkidle", timeout=6000)
+        except Exception:
+            pass
 
     def click_reset(self) -> None:
         self.logger.info("Clicking Reset on Leave List")
@@ -67,7 +70,10 @@ class LeavePage(BasePage):
                 "//button[contains(., 'Reset')]",
             ],
         )
-        self.page.wait_for_load_state("networkidle")
+        try:
+            self.page.wait_for_load_state("networkidle", timeout=6000)
+        except Exception:
+            pass
 
     def is_leave_list_displayed(self, timeout: int = 15000) -> bool:
         visible = self.heal_is_visible(

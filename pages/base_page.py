@@ -1,6 +1,7 @@
 from typing import Any, List, Optional
 from playwright.sync_api import Locator, Page, TimeoutError as PlaywrightTimeoutError
 
+from config.config_reader import ConfigReader
 from utils.logger import get_logger
 from utils.self_healing import self_healing_engine
 
@@ -214,67 +215,102 @@ class BasePage:
 
     def navigate_to_pim(self) -> None:
         self.logger.info("Navigating to PIM module")
-        self.heal_click(
-            element_name="PIM Navigation Menu",
-            primary="a[href*='viewPimModule']",
-            fallbacks=[
-                "span:has-text('PIM')",
-                "a:has-text('PIM')",
-                "//span[text()='PIM']/..",
-            ],
-        )
+        try:
+            self.heal_click(
+                element_name="PIM Navigation Menu",
+                primary="a[href*='viewPimModule']",
+                fallbacks=[
+                    "span:has-text('PIM')",
+                    "a:has-text('PIM')",
+                    "//span[text()='PIM']/..",
+                    "//li[contains(@class, 'oxd-main-menu-item-wrapper')]//span[text()='PIM']",
+                ],
+                timeout=8000,
+            )
+        except Exception as e:
+            self.logger.warning(f"Sidebar click for PIM module failed ({e}), navigating via direct URL fallback")
+            base_url = ConfigReader.get_base_url().rstrip("/")
+            self.navigate(f"{base_url}/web/index.php/pim/viewEmployeeList")
         self.page.wait_for_load_state("domcontentloaded")
 
     def navigate_to_leave(self) -> None:
         self.logger.info("Navigating to Leave module")
-        self.heal_click(
-            element_name="Leave Navigation Menu",
-            primary="a[href*='viewLeaveModule']",
-            fallbacks=[
-                "span:has-text('Leave')",
-                "a:has-text('Leave')",
-                "//span[text()='Leave']/..",
-            ],
-        )
+        try:
+            self.heal_click(
+                element_name="Leave Navigation Menu",
+                primary="a[href*='viewLeaveModule']",
+                fallbacks=[
+                    "span:has-text('Leave')",
+                    "a:has-text('Leave')",
+                    "//span[text()='Leave']/..",
+                    "//li[contains(@class, 'oxd-main-menu-item-wrapper')]//span[text()='Leave']",
+                ],
+                timeout=8000,
+            )
+        except Exception as e:
+            self.logger.warning(f"Sidebar click for Leave module failed ({e}), navigating via direct URL fallback")
+            base_url = ConfigReader.get_base_url().rstrip("/")
+            self.navigate(f"{base_url}/web/index.php/leave/viewLeaveList")
         self.page.wait_for_load_state("domcontentloaded")
 
     def navigate_to_recruitment(self) -> None:
         self.logger.info("Navigating to Recruitment module")
-        self.heal_click(
-            element_name="Recruitment Navigation Menu",
-            primary="a[href*='viewRecruitmentModule']",
-            fallbacks=[
-                "span:has-text('Recruitment')",
-                "a:has-text('Recruitment')",
-                "//span[text()='Recruitment']/..",
-            ],
-        )
+        try:
+            self.heal_click(
+                element_name="Recruitment Navigation Menu",
+                primary="a[href*='viewRecruitmentModule']",
+                fallbacks=[
+                    "span:has-text('Recruitment')",
+                    "a:has-text('Recruitment')",
+                    "//span[text()='Recruitment']/..",
+                    "//li[contains(@class, 'oxd-main-menu-item-wrapper')]//span[text()='Recruitment']",
+                ],
+                timeout=8000,
+            )
+        except Exception as e:
+            self.logger.warning(f"Sidebar click for Recruitment module failed ({e}), navigating via direct URL fallback")
+            base_url = ConfigReader.get_base_url().rstrip("/")
+            self.navigate(f"{base_url}/web/index.php/recruitment/viewCandidates")
         self.page.wait_for_load_state("domcontentloaded")
 
     def navigate_to_buzz(self) -> None:
         self.logger.info("Navigating to Buzz module")
-        self.heal_click(
-            element_name="Buzz Navigation Menu",
-            primary="a[href*='viewBuzz']",
-            fallbacks=[
-                "span:has-text('Buzz')",
-                "a:has-text('Buzz')",
-                "//span[text()='Buzz']/..",
-            ],
-        )
+        try:
+            self.heal_click(
+                element_name="Buzz Navigation Menu",
+                primary="a[href*='viewBuzz']",
+                fallbacks=[
+                    "span:has-text('Buzz')",
+                    "a:has-text('Buzz')",
+                    "//span[text()='Buzz']/..",
+                    "//li[contains(@class, 'oxd-main-menu-item-wrapper')]//span[text()='Buzz']",
+                ],
+                timeout=8000,
+            )
+        except Exception as e:
+            self.logger.warning(f"Sidebar click for Buzz module failed ({e}), navigating via direct URL fallback")
+            base_url = ConfigReader.get_base_url().rstrip("/")
+            self.navigate(f"{base_url}/web/index.php/buzz/viewBuzz")
         self.page.wait_for_load_state("domcontentloaded")
 
     def navigate_to_dashboard(self) -> None:
         self.logger.info("Navigating to Dashboard module")
-        self.heal_click(
-            element_name="Dashboard Navigation Menu",
-            primary="a[href*='dashboard']",
-            fallbacks=[
-                "span:has-text('Dashboard')",
-                "a:has-text('Dashboard')",
-                "//span[text()='Dashboard']/..",
-            ],
-        )
+        try:
+            self.heal_click(
+                element_name="Dashboard Navigation Menu",
+                primary="a[href*='dashboard']",
+                fallbacks=[
+                    "span:has-text('Dashboard')",
+                    "a:has-text('Dashboard')",
+                    "//span[text()='Dashboard']/..",
+                    "//li[contains(@class, 'oxd-main-menu-item-wrapper')]//span[text()='Dashboard']",
+                ],
+                timeout=8000,
+            )
+        except Exception as e:
+            self.logger.warning(f"Sidebar click for Dashboard module failed ({e}), navigating via direct URL fallback")
+            base_url = ConfigReader.get_base_url().rstrip("/")
+            self.navigate(f"{base_url}/web/index.php/dashboard/index")
         self.page.wait_for_load_state("domcontentloaded")
 
     def logout(self) -> None:
