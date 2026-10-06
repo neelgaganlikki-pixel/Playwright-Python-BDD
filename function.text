@@ -3,10 +3,10 @@ ORANGEHRM TEST AUTOMATION - COMPLETE TEST SPECIFICATION & FUNCTIONAL BREAKDOWN
 File: function.text
 Target Application: https://opensource-demo.orangehrmlive.com/
 Framework: Playwright + Python + pytest-bdd
-Total Scenarios: 12 | Status: 100% Passed
+Total Scenarios: 13 | Status: 100% Passed
 ================================================================================
 
-This document details all 12 automated test cases across the 5 core modules of
+This document details all 13 automated test cases across the 6 core modules of
 OrangeHRM, including their purpose, step-by-step actions, locators, test data
 handling, and assertions.
 
@@ -27,6 +27,8 @@ TEST SUITE SUMMARY MATRIX
 10  | test_add_a_new_candidate_successfully          | features/recruit.feat  | @smoke, @recruitment   | PASSED
 11  | test_post_a_status_update_to_buzz_newsfeed     | features/buzz.feature  | @smoke, @buzz          | PASSED
 12  | test_verify_buzz_feed_loads_existing_posts     | features/buzz.feature  | @regression, @buzz     | PASSED
+13  | test_weekly_timesheet_submission_rejection_     | features/timesheet.feat| @timesheet, @regression| PASSED
+    | revision_and_approval                           |                        |                        |
 
 ================================================================================
 STEP-BY-STEP DETAILS FOR EACH TEST CASE
@@ -269,6 +271,76 @@ Test 12: test_verify_buzz_feed_loads_existing_posts
          * Clicks Buzz module on the menu.
       3. Then the Buzz newsfeed container should be displayed
          * Asserts .orangehrm-buzz-newsfeed is visible and loaded.
+
+--------------------------------------------------------------------------------
+6. TIME & ATTENDANCE MODULE (features/timesheet.feature)
+--------------------------------------------------------------------------------
+
+Test 13: test_weekly_timesheet_submission_rejection_revision_and_approval
+  - Feature: Time and Attendance - Weekly Timesheet Lifecycle
+  - Tags: @timesheet, @regression
+  - Objective: Validates complete weekly timesheet business flow: dynamic employee
+               creation with direct supervisor mapping, timesheet logging (40 hrs),
+               submission, supervisor rejection with comments, revision of hours,
+               supervisor approval, and employee edit lock verification.
+  - Step-by-Step Flow:
+      1. Given an employee is registered with a reporting supervisor
+         * Logs into OrangeHRM as Admin.
+         * Extracts Admin user display name from .oxd-userdropdown-name.
+         * Navigates to PIM > Add Employee.
+         * Fills First Name (e.g. TimeF87656), Last Name, and unique Employee ID.
+         * Toggles "Create Login Details" switch.
+         * Inputs unique ESS Username and Password (Password123!).
+         * Saves employee and captures internal empNumber from URL.
+         * Clicks "Report-to" tab and assigns logged-in Admin as "Direct" reporting supervisor.
+         * Saves supervisor mapping, records data in datafilled.txt, and logs out Admin.
+      2. When the employee logs in and navigates to My Timesheets
+         * Logs in with the newly created ESS employee credentials.
+         * Navigates to Time > Timesheets > My Timesheets (/time/viewMyTimesheet).
+      3. And the employee enters project "Apache" and logs 8 hours from Monday to Friday
+         * Clicks "Create Timesheet" or "Edit" button.
+         * Types "Apache" into Project autocomplete field and selects matching project.
+         * Selects activity from dropdown.
+         * Fills 8.00 hours across Monday, Tuesday, Wednesday, Thursday, Friday (40 hrs total).
+      4. And saves and submits the timesheet
+         * Clicks "Save" button and waits for toast notification.
+         * Clicks "Submit" button and waits for confirmation.
+      5. Then the timesheet status should display "Submitted"
+         * Waits for status subtitle .oxd-text--subtitle-2 to contain "Submitted".
+         * Asserts timesheet status contains "Submitted".
+      6. When the supervisor logs in and reviews the employee timesheet
+         * Logs out employee and logs back in as Admin supervisor.
+         * Navigates directly to /time/viewTimesheet/employeeId/{empNumber}.
+      7. And rejects the timesheet with comment "Please correct Wednesday hours"
+         * Inputs rejection comment "Please correct Wednesday hours" in textarea.
+         * Clicks "Reject" button.
+         * Waits for success toast notification.
+      8. Then the timesheet status should display "Rejected"
+         * Waits for status subtitle .oxd-text--subtitle-2 to update to "Rejected".
+         * Asserts timesheet status contains "Rejected".
+      9. When the employee logs in and views their timesheet
+         * Logs out Admin supervisor and logs back in as ESS employee.
+         * Navigates to My Timesheets.
+     10. Then the timesheet status should display "Rejected"
+         * Confirms timesheet status displays "Rejected" on employee portal.
+     11. When the employee updates Wednesday hours to 7.00 and re-submits the timesheet
+         * Clicks "Edit" button.
+         * Locates Wednesday daily hours input (index 2) and updates value to "7.00".
+         * Clicks "Save" button.
+         * Clicks "Submit" button to re-submit for approval.
+     12. Then the timesheet status should display "Submitted"
+         * Confirms timesheet status transitions back to "Submitted".
+     13. When the supervisor reviews the employee timesheet and clicks approve
+         * Logs out employee and logs back in as Admin supervisor.
+         * Navigates to employee's timesheet (/time/viewTimesheet/employeeId/{empNumber}).
+         * Clicks "Approve" button and awaits success toast.
+     14. Then the timesheet status should display "Approved"
+         * Waits for status subtitle to transition to "Approved".
+         * Asserts timesheet status contains "Approved".
+     15. And the timesheet should be locked from further employee edits
+         * Logs out Admin and logs back in as ESS employee.
+         * Navigates to My Timesheets and waits for status "Approved".
+         * Asserts "Edit" button is hidden/disabled (locked from further employee modification).
 
 ================================================================================
 END OF SPECIFICATION - File: function.text

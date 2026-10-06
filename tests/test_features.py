@@ -10,3 +10,5 @@ scenarios(str(FEATURES_DIR / "employee.feature"))
 scenarios(str(FEATURES_DIR / "leave.feature"))
 scenarios(str(FEATURES_DIR / "recruitment.feature"))
 scenarios(str(FEATURES_DIR / "buzz.feature"))
+scenarios(str(FEATURES_DIR / "timesheet.feature"))
+

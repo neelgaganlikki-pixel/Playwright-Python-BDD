@@ -27,6 +27,7 @@ pytest_plugins = [
     "step_definitions.leave_steps",
     "step_definitions.recruitment_steps",
     "step_definitions.buzz_steps",
+    "step_definitions.timesheet_steps",
 ]
 
 
