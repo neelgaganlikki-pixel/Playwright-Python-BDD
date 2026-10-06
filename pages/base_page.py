@@ -179,9 +179,20 @@ class BasePage:
     # Standard Page Navigation & Interactions
     # =========================================================================
 
-    def navigate(self, url: str) -> None:
+    def navigate(self, url: str, retries: int = 2) -> None:
         self.logger.info(f"Navigating to URL: {url}")
-        self.page.goto(url, wait_until="domcontentloaded")
+        for attempt in range(1, retries + 1):
+            try:
+                self.page.goto(url, wait_until="domcontentloaded", timeout=45000)
+                return
+            except Exception as e:
+                if attempt == retries:
+                    self.logger.error(f"Navigation to {url} failed on attempt {attempt}: {e}")
+                    raise
+                self.logger.warning(
+                    f"Navigation to {url} encountered timeout/error (attempt {attempt}/{retries}): {e}. Retrying..."
+                )
+                self.page.wait_for_timeout(1500)
 
     def get_title(self) -> str:
         return self.page.title()
