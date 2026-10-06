@@ -2,6 +2,10 @@ pipeline {
 
     agent any
 
+    triggers {
+        githubPush()
+    }
+
     environment {
 
         // Explicit Python installation used by Jenkins
