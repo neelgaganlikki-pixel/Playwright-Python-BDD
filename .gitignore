@@ -35,6 +35,7 @@ datafilled.txt
 # Playwright artifacts
 videos/
 traces/
+scripts/
 
 # IDE & OS files
 .vscode/

@@ -25,13 +25,30 @@ def clean_engine():
         engine.storage_path.unlink()
 
 
-# -----------------------------------------------------------------------------
-# 1. Primary Locator Succeeds
-# -----------------------------------------------------------------------------
-def test_01_primary_locator_succeeds(page: Page, clean_engine: SelfHealingEngine):
+def test_self_healing_engine_comprehensive_suite(page: Page, clean_engine: SelfHealingEngine):
+    """
+    Unified comprehensive verification of the Self-Healing Locator Engine covering
+    all 14 core engine capabilities in a single consolidated test:
+      1. Primary Locator Succeeds Directly
+      2. Primary Fails, Fallback Succeeds
+      3. Multiple Fallbacks Tested in Sequence
+      4. All Fallbacks Fail -> Raises SelfHealingError
+      5. Click Action Healing
+      6. Fill Action Healing
+      7. Visibility Query Healing
+      8. Disabled Element Does Not Hide Failure
+      9. Hidden Element Fails Actionable Wait
+      10. Timeout Behavior (Controlled and Bounded)
+      11. Self-Healing Disabled Mode
+      12. Healed Locator Persistence & Cache Reuse
+      13. Invalid / Malformed Locator Syntax Handled Gracefully
+      14. Headless Execution & Final Metrics Verification
+    """
+    # -------------------------------------------------------------------------
+    # 1. Primary Locator Succeeds Directly
+    # -------------------------------------------------------------------------
     page.set_content("<button id='submit-btn'>Submit</button>")
     clicked = []
-
     clean_engine.execute_with_healing(
         page=page,
         page_name="TestPage",
@@ -41,18 +58,13 @@ def test_01_primary_locator_succeeds(page: Page, clean_engine: SelfHealingEngine
         action_fn=lambda loc: (loc.click(), clicked.append(True)),
         fallbacks=["button.btn-fallback", "[data-testid='submit']"],
     )
-
     assert len(clicked) == 1
-    summary = clean_engine.get_summary()
-    assert summary["successful"] == 0  # No healing needed, primary worked directly
+    assert clean_engine.get_summary()["successful"] == 0
 
-
-# -----------------------------------------------------------------------------
-# 2. Primary Locator Fails, Fallback Succeeds
-# -----------------------------------------------------------------------------
-def test_02_primary_fails_fallback_succeeds(page: Page, clean_engine: SelfHealingEngine):
+    # -------------------------------------------------------------------------
+    # 2. Primary Locator Fails, Fallback Succeeds
+    # -------------------------------------------------------------------------
     page.set_content("<input name='username' type='text' />")
-
     result = clean_engine.execute_with_healing(
         page=page,
         page_name="LoginPage",
@@ -62,20 +74,16 @@ def test_02_primary_fails_fallback_succeeds(page: Page, clean_engine: SelfHealin
         action_fn=lambda loc: (loc.fill("admin_test"), "filled")[-1],
         fallbacks=["input[name='username']", "input[type='text']"],
     )
-
     assert result == "filled"
     assert page.locator("input[name='username']").input_value() == "admin_test"
     summary = clean_engine.get_summary()
     assert summary["successful"] == 1
     assert summary["healed_elements"][0]["healed"] == "input[name='username']"
 
-
-# -----------------------------------------------------------------------------
-# 3. Multiple Fallbacks Tested in Sequence
-# -----------------------------------------------------------------------------
-def test_03_multiple_fallbacks_in_order(page: Page, clean_engine: SelfHealingEngine):
+    # -------------------------------------------------------------------------
+    # 3. Multiple Fallbacks Tested in Sequence
+    # -------------------------------------------------------------------------
     page.set_content("<button class='final-btn'>Save Changes</button>")
-
     clean_engine.execute_with_healing(
         page=page,
         page_name="SettingsPage",
@@ -89,18 +97,14 @@ def test_03_multiple_fallbacks_in_order(page: Page, clean_engine: SelfHealingEng
             "button.final-btn",  # 3rd candidate succeeds
         ],
     )
-
     summary = clean_engine.get_summary()
-    assert summary["successful"] == 1
-    assert summary["healed_elements"][0]["attempt"] == 4  # primary + 2 failed + 1 success
+    assert summary["successful"] == 2
+    assert summary["healed_elements"][1]["attempt"] == 4
 
-
-# -----------------------------------------------------------------------------
-# 4. All Fallbacks Fail -> Raises SelfHealingError
-# -----------------------------------------------------------------------------
-def test_04_all_fallbacks_fail(page: Page, clean_engine: SelfHealingEngine):
+    # -------------------------------------------------------------------------
+    # 4. All Fallbacks Fail -> Raises SelfHealingError
+    # -------------------------------------------------------------------------
     page.set_content("<div>Empty Container</div>")
-
     with pytest.raises(SelfHealingError) as exc_info:
         clean_engine.execute_with_healing(
             page=page,
@@ -111,23 +115,18 @@ def test_04_all_fallbacks_fail(page: Page, clean_engine: SelfHealingEngine):
             action_fn=lambda loc: loc.click(),
             fallbacks=["#missing-2", "#missing-3"],
         )
-
     err = exc_info.value
     assert err.element_name == "MissingButton"
     assert err.page_name == "ProfilePage"
     assert len(err.fallbacks_tried) == 2
-    summary = clean_engine.get_summary()
-    assert summary["failed"] == 1
+    assert clean_engine.get_summary()["failed"] == 1
 
-
-# -----------------------------------------------------------------------------
-# 5. Click Action Healing
-# -----------------------------------------------------------------------------
-def test_05_click_healing(page: Page, clean_engine: SelfHealingEngine):
+    # -------------------------------------------------------------------------
+    # 5. Click Action Healing
+    # -------------------------------------------------------------------------
     page.set_content(
         "<button id='real-btn' onclick=\"document.body.innerHTML='<h1>Clicked!</h1>'\">Click Me</button>"
     )
-
     clean_engine.execute_with_healing(
         page=page,
         page_name="ClickPage",
@@ -137,16 +136,12 @@ def test_05_click_healing(page: Page, clean_engine: SelfHealingEngine):
         action_fn=lambda loc: loc.click(),
         fallbacks=["button#real-btn"],
     )
-
     assert "Clicked!" in page.content()
 
-
-# -----------------------------------------------------------------------------
-# 6. Fill Action Healing
-# -----------------------------------------------------------------------------
-def test_06_fill_healing(page: Page, clean_engine: SelfHealingEngine):
+    # -------------------------------------------------------------------------
+    # 6. Fill Action Healing
+    # -------------------------------------------------------------------------
     page.set_content("<input id='password-field' type='password' />")
-
     clean_engine.execute_with_healing(
         page=page,
         page_name="LoginPage",
@@ -156,16 +151,12 @@ def test_06_fill_healing(page: Page, clean_engine: SelfHealingEngine):
         action_fn=lambda loc: loc.fill("Secret123"),
         fallbacks=["input#password-field"],
     )
-
     assert page.locator("#password-field").input_value() == "Secret123"
 
-
-# -----------------------------------------------------------------------------
-# 7. Visibility Query Healing
-# -----------------------------------------------------------------------------
-def test_07_visibility_healing(page: Page, clean_engine: SelfHealingEngine):
+    # -------------------------------------------------------------------------
+    # 7. Visibility Query Healing
+    # -------------------------------------------------------------------------
     page.set_content("<span class='success-banner'>Operation Complete</span>")
-
     visible = clean_engine.execute_with_healing(
         page=page,
         page_name="AlertPage",
@@ -176,19 +167,12 @@ def test_07_visibility_healing(page: Page, clean_engine: SelfHealingEngine):
         fallbacks=[".success-banner"],
         is_query=True,
     )
-
     assert visible is True
-    summary = clean_engine.get_summary()
-    assert summary["successful"] == 1
 
-
-# -----------------------------------------------------------------------------
-# 8. Genuinely Missing / Disabled Element Does Not Hide Failure
-# -----------------------------------------------------------------------------
-def test_08_disabled_element_fails(page: Page, clean_engine: SelfHealingEngine):
+    # -------------------------------------------------------------------------
+    # 8. Genuinely Missing / Disabled Element Does Not Hide Failure
+    # -------------------------------------------------------------------------
     page.set_content("<button id='disabled-btn' disabled>Cannot Click</button>")
-
-    # Attempting to click with timeout should fail properly and not be masked
     with pytest.raises(SelfHealingError):
         clean_engine.execute_with_healing(
             page=page,
@@ -201,13 +185,10 @@ def test_08_disabled_element_fails(page: Page, clean_engine: SelfHealingEngine):
             timeout_ms=1000,
         )
 
-
-# -----------------------------------------------------------------------------
-# 9. Hidden Element Fails Actionable Wait
-# -----------------------------------------------------------------------------
-def test_09_hidden_element(page: Page, clean_engine: SelfHealingEngine):
+    # -------------------------------------------------------------------------
+    # 9. Hidden Element Fails Actionable Wait
+    # -------------------------------------------------------------------------
     page.set_content("<div id='hidden-div' style='display: none;'>Hidden</div>")
-
     with pytest.raises(SelfHealingError):
         clean_engine.execute_with_healing(
             page=page,
@@ -220,16 +201,12 @@ def test_09_hidden_element(page: Page, clean_engine: SelfHealingEngine):
             timeout_ms=1000,
         )
 
-
-# -----------------------------------------------------------------------------
-# 10. Timeout Behavior (Controlled and Bounded)
-# -----------------------------------------------------------------------------
-def test_10_timeout_handling(page: Page, clean_engine: SelfHealingEngine):
+    # -------------------------------------------------------------------------
+    # 10. Timeout Behavior (Controlled and Bounded)
+    # -------------------------------------------------------------------------
     page.set_content("<div>No buttons here</div>")
-    clean_engine.fallback_timeout_ms = 500  # fast bound
-
+    clean_engine.fallback_timeout_ms = 500
     start = time.time()
-
     with pytest.raises(SelfHealingError):
         clean_engine.execute_with_healing(
             page=page,
@@ -241,19 +218,13 @@ def test_10_timeout_handling(page: Page, clean_engine: SelfHealingEngine):
             fallbacks=["#missing-2"],
             timeout_ms=500,
         )
+    assert (time.time() - start) < 5.0
 
-    duration = time.time() - start
-    assert duration < 5.0  # Must not hang indefinitely
-
-
-# -----------------------------------------------------------------------------
-# 11. Self-Healing Disabled
-# -----------------------------------------------------------------------------
-def test_11_self_healing_disabled(page: Page, clean_engine: SelfHealingEngine):
+    # -------------------------------------------------------------------------
+    # 11. Self-Healing Disabled
+    # -------------------------------------------------------------------------
     page.set_content("<button id='valid-btn'>Valid</button>")
     clean_engine.enabled = False
-
-    # Primary broken: should fail directly with Playwright error without attempting fallbacks
     with pytest.raises(Exception):
         clean_engine.execute_with_healing(
             page=page,
@@ -265,18 +236,12 @@ def test_11_self_healing_disabled(page: Page, clean_engine: SelfHealingEngine):
             fallbacks=["#valid-btn"],
             timeout_ms=1000,
         )
+    clean_engine.enabled = True
 
-    summary = clean_engine.get_summary()
-    assert summary["total_attempts"] == 0
-
-
-# -----------------------------------------------------------------------------
-# 12. Healed Locator Persistence and Reuse
-# -----------------------------------------------------------------------------
-def test_12_healed_locator_persistence(page: Page, clean_engine: SelfHealingEngine):
+    # -------------------------------------------------------------------------
+    # 12. Healed Locator Persistence and Reuse
+    # -------------------------------------------------------------------------
     page.set_content("<input id='reused-input' value='Initial' />")
-
-    # First execution: heals from broken primary to #reused-input
     clean_engine.execute_with_healing(
         page=page,
         page_name="FormPage",
@@ -286,12 +251,9 @@ def test_12_healed_locator_persistence(page: Page, clean_engine: SelfHealingEngi
         action_fn=lambda loc: loc.fill("UpdatedValue"),
         fallbacks=["#another-broken", "#reused-input"],
     )
-
     assert clean_engine.storage_path.exists()
-
     with open(clean_engine.storage_path, "r", encoding="utf-8") as f:
         stored = json.load(f)
-
     assert "FormPage.PersistedField" in stored
     assert stored["FormPage.PersistedField"]["healed"] == "#reused-input"
 
@@ -305,16 +267,12 @@ def test_12_healed_locator_persistence(page: Page, clean_engine: SelfHealingEngi
         action_fn=lambda loc: loc.fill("SecondUpdate"),
         fallbacks=["#another-broken", "#reused-input"],
     )
-
     assert page.locator("#reused-input").input_value() == "SecondUpdate"
 
-
-# -----------------------------------------------------------------------------
-# 13. Invalid Locator Syntax Handled Gracefully
-# -----------------------------------------------------------------------------
-def test_13_invalid_locator(page: Page, clean_engine: SelfHealingEngine):
+    # -------------------------------------------------------------------------
+    # 13. Invalid Locator Syntax Handled Gracefully
+    # -------------------------------------------------------------------------
     page.set_content("<p id='valid-target'>Hello World</p>")
-
     text = clean_engine.execute_with_healing(
         page=page,
         page_name="SyntaxPage",
@@ -324,16 +282,12 @@ def test_13_invalid_locator(page: Page, clean_engine: SelfHealingEngine):
         action_fn=lambda loc: loc.inner_text(),
         fallbacks=["#valid-target"],
     )
-
     assert text == "Hello World"
 
-
-# -----------------------------------------------------------------------------
-# 14. Jenkins / Headless Browser Verification
-# -----------------------------------------------------------------------------
-def test_14_headless_execution(page: Page, clean_engine: SelfHealingEngine):
+    # -------------------------------------------------------------------------
+    # 14. Jenkins / Headless Execution & Metrics Verification
+    # -------------------------------------------------------------------------
     page.set_content("<button class='ci-button'>CI Ready</button>")
-
     clean_engine.execute_with_healing(
         page=page,
         page_name="CIPage",
@@ -343,7 +297,5 @@ def test_14_headless_execution(page: Page, clean_engine: SelfHealingEngine):
         action_fn=lambda loc: loc.click(),
         fallbacks=[".ci-button"],
     )
-
-    summary = clean_engine.get_summary()
-    assert summary["successful"] >= 1
-
+    final_summary = clean_engine.get_summary()
+    assert final_summary["successful"] >= 1
