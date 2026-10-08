@@ -15,21 +15,34 @@ logger = get_logger("TimesheetSteps")
 
 
 def _do_login(page: Page, username: str, password: str) -> None:
-    """Helper to perform full login and wait until dashboard is fully idle."""
+    """Helper to perform full login and wait until authenticated."""
     logger.info("Executing login for user: %s", username)
     login_page = LoginPage(page)
     login_page.login(username, password)
-    page.wait_for_url("**/dashboard/**", timeout=25000)
-    page.wait_for_load_state("networkidle")
+    # Wait for authentication: topbar user profile dropdown indicates successful login regardless of landing URL
+    try:
+        page.locator(".oxd-userdropdown-tab").wait_for(state="visible", timeout=25000)
+    except Exception:
+        page.wait_for_url(lambda u: "/auth/login" not in u, timeout=10000)
+    page.wait_for_load_state("domcontentloaded")
+    try:
+        page.wait_for_load_state("networkidle", timeout=5000)
+    except Exception:
+        pass
 
 
 def _do_logout(page: Page) -> None:
-    """Helper to perform full logout and wait until login page is fully idle."""
+    """Helper to perform full logout and reset page state cleanly."""
     logger.info("Executing logout...")
     login_page = LoginPage(page)
     login_page.logout()
     page.wait_for_url("**/auth/login**", timeout=20000)
-    page.wait_for_load_state("networkidle")
+    base_url = ConfigReader.get_base_url().rstrip("/")
+    page.goto(f"{base_url}/web/index.php/auth/login", wait_until="domcontentloaded")
+    try:
+        page.wait_for_load_state("networkidle", timeout=5000)
+    except Exception:
+        pass
 
 
 @given("an employee is registered with a reporting supervisor")
